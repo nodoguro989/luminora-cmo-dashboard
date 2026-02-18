@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luminora CMO Dashboard — Candice</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        lum: { 50:'#faf9f7', 100:'#f0eeea', 200:'#e0dcd5', 300:'#c4bfb4', 400:'#a39c8e', 500:'#87806f', 600:'#6b6556', 700:'#504c41', 800:'#38352e', 900:'#22201c', 950:'#141310' },
+        accent: { DEFAULT:'#8b7355', light:'#a68e6f', dark:'#6b5a42' },
+        rose: { DEFAULT:'#c9a0a0', light:'#dbb8b8' }
+      },
+      fontFamily: { sans:['Century Gothic','Futura','system-ui','sans-serif'] }
+    }
+  }
+}
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  body { font-family: 'Inter', sans-serif; }
+  .engine-card { transition: all 0.2s ease; }
+  .engine-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+  .tab-active { border-bottom: 2px solid #8b7355; color: #8b7355; font-weight: 600; }
+  .tab-inactive { border-bottom: 2px solid transparent; color: #87806f; }
+  .tab-inactive:hover { color: #6b6556; }
+  .segment-card { border-left: 3px solid #e0dcd5; }
+  .segment-card.strategy { border-left-color: #8b7355; }
+  .segment-card.progress { border-left-color: #7c9a6b; }
+  .segment-card.analysis { border-left-color: #9a7c6b; }
+  .modal-overlay { background: rgba(20,19,16,0.5); backdrop-filter: blur(4px); }
+  textarea, input, select { font-family: 'Inter', sans-serif; }
+  .screenshot-thumb { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #faf9f7; }
+  ::-webkit-scrollbar-thumb { background: #c4bfb4; border-radius: 3px; }
+</style>
+</head>
+<body class="bg-lum-50 text-lum-900 min-h-screen">
+
+<!-- Header -->
+<header class="bg-white border-b border-lum-200 sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-lum-900 rounded-lg flex items-center justify-center text-white text-sm font-bold">L</div>
+      <div>
+        <h1 class="text-lg font-semibold text-lum-900">Luminora CMO Dashboard</h1>
+        <p class="text-xs text-lum-500">Candice · Marketing Operations</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <span id="lastUpdated" class="text-xs text-lum-400"></span>
+      <button onclick="exportData()" class="text-xs px-3 py-1.5 bg-lum-100 rounded-md text-lum-600 hover:bg-lum-200 transition">Export</button>
+    </div>
+  </div>
+</header>
+
+<!-- Navigation -->
+<nav class="bg-white border-b border-lum-100">
+  <div class="max-w-7xl mx-auto px-6 flex gap-1 overflow-x-auto">
+    <button onclick="showView('overview')" id="nav-overview" class="nav-btn px-4 py-3 text-sm whitespace-nowrap tab-active">Overview</button>
+    <button onclick="showView('app-ig')" id="nav-app-ig" class="nav-btn px-4 py-3 text-sm whitespace-nowrap tab-inactive">📸 App · IG & Meta</button>
+    <button onclick="showView('app-tt')" id="nav-app-tt" class="nav-btn px-4 py-3 text-sm whitespace-nowrap tab-inactive">🎵 App · TikTok</button>
+    <button onclick="showView('app-red')" id="nav-app-red" class="nav-btn px-4 py-3 text-sm whitespace-nowrap tab-inactive">📕 App · 小红书</button>
+    <button onclick="showView('candice-ig')" id="nav-candice-ig" class="nav-btn px-4 py-3 text-sm whitespace-nowrap tab-inactive">🌸 Candice · IG</button>
+    <button onclick="showView('candice-tt')" id="nav-candice-tt" class="nav-btn px-4 py-3 text-sm whitespace-nowrap tab-inactive">🌸 Candice · TikTok</button>
+    <button onclick="showView('candice-red')" id="nav-candice-red" class="nav-btn px-4 py-3 text-sm whitespace-nowrap tab-inactive">🌸 Candice · 小红书</button>
+    <button onclick="showView('outreach')" id="nav-outreach" class="nav-btn px-4 py-3 text-sm whitespace-nowrap tab-inactive">📧 Outreach</button>
+    <button onclick="showView('journal')" id="nav-journal" class="nav-btn px-4 py-3 text-sm whitespace-nowrap tab-inactive">📝 Journal</button>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="max-w-7xl mx-auto px-6 py-8" id="mainContent">
+</main>
+
+<!-- Add Entry Modal -->
+<div id="addModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div class="p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-semibold" id="modalTitle">Add Progress Entry</h3>
+        <button onclick="closeModal()" class="text-lum-400 hover:text-lum-600 text-xl">&times;</button>
+      </div>
+      <form id="entryForm" onsubmit="saveEntry(event)">
+        <input type="hidden" id="entryEngine" />
+        <input type="hidden" id="entrySegment" />
+        <input type="hidden" id="entryIndex" value="-1" />
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-lum-700 mb-1">Date</label>
+            <input type="date" id="entryDate" class="w-full border border-lum-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" required />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-lum-700 mb-1">Title</label>
+            <input type="text" id="entryTitle" class="w-full border border-lum-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" placeholder="What was done?" required />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-lum-700 mb-1">Details</label>
+            <textarea id="entryDetails" rows="4" class="w-full border border-lum-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" placeholder="Notes, observations, links..."></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-lum-700 mb-1">Screenshot URL (optional)</label>
+            <input type="text" id="entryScreenshot" class="w-full border border-lum-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" placeholder="https://..." />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-lum-700 mb-1">Status</label>
+            <select id="entryStatus" class="w-full border border-lum-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent">
+              <option value="done">✅ Done</option>
+              <option value="in-progress">🔄 In Progress</option>
+              <option value="planned">📋 Planned</option>
+              <option value="blocked">🚫 Blocked</option>
+            </select>
+          </div>
+        </div>
+        <div class="mt-6 flex gap-3 justify-end">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm text-lum-600 hover:text-lum-800 transition">Cancel</button>
+          <button type="submit" class="px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent-dark transition">Save Entry</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Strategy Edit Modal -->
+<div id="strategyModal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div class="p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-semibold" id="strategyModalTitle">Edit Strategy</h3>
+        <button onclick="closeStrategyModal()" class="text-lum-400 hover:text-lum-600 text-xl">&times;</button>
+      </div>
+      <form id="strategyForm" onsubmit="saveStrategy(event)">
+        <input type="hidden" id="stratEngine" />
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-lum-700 mb-1">Posting Frequency</label>
+            <input type="text" id="stratFrequency" class="w-full border border-lum-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" placeholder="e.g. 5x/week" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-lum-700 mb-1">KPIs</label>
+            <textarea id="stratKPIs" rows="3" class="w-full border border-lum-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" placeholder="One KPI per line..."></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-lum-700 mb-1">Content Pillars</label>
+            <textarea id="stratPillars" rows="3" class="w-full border border-lum-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" placeholder="Key content themes..."></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-lum-700 mb-1">Target Audience</label>
+            <textarea id="stratAudience" rows="2" class="w-full border border-lum-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" placeholder="Who are we reaching?"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-lum-700 mb-1">Notes</label>
+            <textarea id="stratNotes" rows="3" class="w-full border border-lum-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" placeholder="Additional strategy notes..."></textarea>
+          </div>
+        </div>
+        <div class="mt-6 flex gap-3 justify-end">
+          <button type="button" onclick="closeStrategyModal()" class="px-4 py-2 text-sm text-lum-600 hover:text-lum-800 transition">Cancel</button>
+          <button type="submit" class="px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent-dark transition">Save Strategy</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Data Model ───
+const ENGINES = [
+  { id:'app-ig', name:'App · Instagram & Meta', emoji:'📸', category:'App Content' },
+  { id:'app-tt', name:'App · TikTok', emoji:'🎵', category:'App Content' },
+  { id:'app-red', name:'App · 小红书', emoji:'📕', category:'App Content' },
+  { id:'candice-ig', name:'Candice · Instagram', emoji:'🌸', category:'Candice Personal' },
+  { id:'candice-tt', name:'Candice · TikTok', emoji:'🌸', category:'Candice Personal' },
+  { id:'candice-red', name:'Candice · 小红书', emoji:'🌸', category:'Candice Personal' },
+  { id:'outreach', name:'Outreach', emoji:'📧', category:'Outreach' },
+  { id:'journal', name:'Journal / SEO Blog', emoji:'📝', category:'Journal' },
+];
+
+function defaultData() {
+  const d = { strategies:{}, progress:{}, analysis:{}, lastUpdated: new Date().toISOString() };
+  ENGINES.forEach(e => {
+    d.strategies[e.id] = { frequency:'', kpis:'', pillars:'', audience:'', notes:'' };
+    d.progress[e.id] = [];
+    d.analysis[e.id] = [];
+  });
+  return d;
+}
+
+let DATA = JSON.parse(localStorage.getItem('luminora-cmo') || 'null') || defaultData();
+let currentView = 'overview';
+
+function save() {
+  DATA.lastUpdated = new Date().toISOString();
+  localStorage.setItem('luminora-cmo', JSON.stringify(DATA));
+  document.getElementById('lastUpdated').textContent = 'Saved ' + new Date().toLocaleTimeString();
+}
+
+// ─── Navigation ───
+function showView(view) {
+  currentView = view;
+  document.querySelectorAll('.nav-btn').forEach(b => { b.className = b.className.replace('tab-active','tab-inactive'); });
+  const btn = document.getElementById('nav-'+view);
+  if(btn) btn.className = btn.className.replace('tab-inactive','tab-active');
+  render();
+}
+
+// ─── Render ───
+function render() {
+  const main = document.getElementById('mainContent');
+  if(currentView === 'overview') { renderOverview(main); }
+  else { renderEngine(main, currentView); }
+}
+
+function renderOverview(el) {
+  const categories = {};
+  ENGINES.forEach(e => {
+    if(!categories[e.category]) categories[e.category] = [];
+    categories[e.category].push(e);
+  });
+
+  let html = `<div class="mb-8">
+    <h2 class="text-2xl font-semibold text-lum-900 mb-1">Overview</h2>
+    <p class="text-sm text-lum-500">All engines at a glance. Click any card to dive in.</p>
+  </div>`;
+
+  for(const [cat, engines] of Object.entries(categories)) {
+    html += `<div class="mb-8">
+      <h3 class="text-sm font-semibold text-lum-500 uppercase tracking-wider mb-4">${cat}</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">`;
+
+    engines.forEach(e => {
+      const strat = DATA.strategies[e.id];
+      const progCount = DATA.progress[e.id].length;
+      const analysisCount = DATA.analysis[e.id].length;
+      const hasStrategy = strat && (strat.frequency || strat.kpis);
+      const lastEntry = DATA.progress[e.id][0];
+
+      html += `<div class="engine-card bg-white rounded-xl p-5 border border-lum-100 cursor-pointer" onclick="showView('${e.id}')">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-2xl">${e.emoji}</span>
+          <div>
+            <h4 class="font-semibold text-lum-900 text-sm">${e.name}</h4>
+            <span class="text-xs ${hasStrategy ? 'text-green-600' : 'text-lum-400'}">${hasStrategy ? '● Strategy set' : '○ No strategy yet'}</span>
+          </div>
+        </div>
+        <div class="flex gap-4 text-xs text-lum-500">
+          <span><strong class="text-lum-700">${progCount}</strong> entries</span>
+          <span><strong class="text-lum-700">${analysisCount}</strong> analyses</span>
+        </div>
+        ${lastEntry ? `<div class="mt-3 pt-3 border-t border-lum-50 text-xs text-lum-500">Latest: ${lastEntry.title} <span class="text-lum-400">(${lastEntry.date})</span></div>` : ''}
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  }
+
+  // Quick stats
+  const totalEntries = ENGINES.reduce((s,e) => s + DATA.progress[e.id].length, 0);
+  const totalAnalyses = ENGINES.reduce((s,e) => s + DATA.analysis[e.id].length, 0);
+  const strategiesSet = ENGINES.filter(e => DATA.strategies[e.id]?.frequency || DATA.strategies[e.id]?.kpis).length;
+
+  html = `<div class="grid grid-cols-3 gap-4 mb-8">
+    <div class="bg-white rounded-xl p-4 border border-lum-100 text-center">
+      <div class="text-2xl font-bold text-accent">${strategiesSet}/8</div>
+      <div class="text-xs text-lum-500 mt-1">Strategies Set</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-lum-100 text-center">
+      <div class="text-2xl font-bold text-accent">${totalEntries}</div>
+      <div class="text-xs text-lum-500 mt-1">Progress Entries</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 border border-lum-100 text-center">
+      <div class="text-2xl font-bold text-accent">${totalAnalyses}</div>
+      <div class="text-xs text-lum-500 mt-1">Analyses</div>
+    </div>
+  </div>` + html;
+
+  el.innerHTML = html;
+}
+
+function renderEngine(el, engineId) {
+  const engine = ENGINES.find(e => e.id === engineId);
+  if(!engine) return;
+  const strat = DATA.strategies[engineId];
+  const prog = DATA.progress[engineId];
+  const analysis = DATA.analysis[engineId];
+
+  let html = `<div class="mb-6">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl">${engine.emoji}</span>
+        <div>
+          <h2 class="text-xl font-semibold text-lum-900">${engine.name}</h2>
+          <p class="text-xs text-lum-500">${engine.category}</p>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="openAddEntry('${engineId}','progress')" class="px-3 py-1.5 text-xs bg-accent text-white rounded-lg hover:bg-accent-dark transition">+ Progress Entry</button>
+        <button onclick="openAddEntry('${engineId}','analysis')" class="px-3 py-1.5 text-xs bg-lum-700 text-white rounded-lg hover:bg-lum-800 transition">+ Analysis</button>
+      </div>
+    </div>
+  </div>`;
+
+  // Strategy Section
+  html += `<div class="segment-card strategy bg-white rounded-xl p-5 border border-lum-100 mb-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-sm text-accent flex items-center gap-2">📊 Strategy</h3>
+      <button onclick="openStrategyEdit('${engineId}')" class="text-xs text-accent hover:text-accent-dark transition">Edit</button>
+    </div>
+    <div class="grid grid-cols-2 gap-4 text-sm">
+      <div>
+        <span class="text-xs text-lum-500 block mb-1">Posting Frequency</span>
+        <span class="text-lum-800">${strat.frequency || '—'}</span>
+      </div>
+      <div>
+        <span class="text-xs text-lum-500 block mb-1">Target Audience</span>
+        <span class="text-lum-800">${strat.audience || '—'}</span>
+      </div>
+      <div>
+        <span class="text-xs text-lum-500 block mb-1">KPIs</span>
+        <span class="text-lum-800 whitespace-pre-line">${strat.kpis || '—'}</span>
+      </div>
+      <div>
+        <span class="text-xs text-lum-500 block mb-1">Content Pillars</span>
+        <span class="text-lum-800 whitespace-pre-line">${strat.pillars || '—'}</span>
+      </div>
+    </div>
+    ${strat.notes ? `<div class="mt-3 pt-3 border-t border-lum-50"><span class="text-xs text-lum-500 block mb-1">Notes</span><span class="text-sm text-lum-800 whitespace-pre-line">${strat.notes}</span></div>` : ''}
+  </div>`;
+
+  // Progress Section
+  html += `<div class="segment-card progress bg-white rounded-xl p-5 border border-lum-100 mb-6">
+    <h3 class="font-semibold text-sm text-green-700 flex items-center gap-2 mb-4">📋 Progress Log <span class="text-xs font-normal text-lum-400">(${prog.length} entries)</span></h3>
+    ${prog.length === 0 ? '<p class="text-sm text-lum-400 italic">No entries yet. Click "+ Progress Entry" to log your first action.</p>' : ''}
+    <div class="space-y-3">`;
+
+  prog.forEach((entry, i) => {
+    const statusColors = { done:'bg-green-100 text-green-700', 'in-progress':'bg-yellow-100 text-yellow-700', planned:'bg-blue-100 text-blue-700', blocked:'bg-red-100 text-red-700' };
+    const statusLabels = { done:'Done', 'in-progress':'In Progress', planned:'Planned', blocked:'Blocked' };
+    html += `<div class="flex gap-3 p-3 rounded-lg bg-lum-50 group">
+      ${entry.screenshot ? `<img src="${entry.screenshot}" class="screenshot-thumb flex-shrink-0" onerror="this.style.display='none'" />` : ''}
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs px-2 py-0.5 rounded-full ${statusColors[entry.status] || statusColors.done}">${statusLabels[entry.status] || entry.status}</span>
+          <span class="text-xs text-lum-400">${entry.date}</span>
+          <button onclick="deleteEntry('${engineId}','progress',${i})" class="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition ml-auto">Delete</button>
+        </div>
+        <h4 class="text-sm font-medium text-lum-800 truncate">${entry.title}</h4>
+        ${entry.details ? `<p class="text-xs text-lum-500 mt-1 whitespace-pre-line">${entry.details}</p>` : ''}
+      </div>
+    </div>`;
+  });
+
+  html += `</div></div>`;
+
+  // Analysis Section
+  html += `<div class="segment-card analysis bg-white rounded-xl p-5 border border-lum-100">
+    <h3 class="font-semibold text-sm text-amber-700 flex items-center gap-2 mb-4">💡 Analysis & Suggestions <span class="text-xs font-normal text-lum-400">(${analysis.length} entries)</span></h3>
+    ${analysis.length === 0 ? '<p class="text-sm text-lum-400 italic">No analyses yet. Click "+ Analysis" to log insights and suggestions.</p>' : ''}
+    <div class="space-y-3">`;
+
+  analysis.forEach((entry, i) => {
+    html += `<div class="p-3 rounded-lg bg-lum-50 group">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-xs text-lum-400">${entry.date}</span>
+        <button onclick="deleteEntry('${engineId}','analysis',${i})" class="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition ml-auto">Delete</button>
+      </div>
+      <h4 class="text-sm font-medium text-lum-800">${entry.title}</h4>
+      ${entry.details ? `<p class="text-xs text-lum-500 mt-1 whitespace-pre-line">${entry.details}</p>` : ''}
+    </div>`;
+  });
+
+  html += `</div></div>`;
+
+  el.innerHTML = html;
+}
+
+// ─── Modals ───
+function openAddEntry(engineId, segment) {
+  document.getElementById('entryEngine').value = engineId;
+  document.getElementById('entrySegment').value = segment;
+  document.getElementById('entryIndex').value = -1;
+  document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('entryTitle').value = '';
+  document.getElementById('entryDetails').value = '';
+  document.getElementById('entryScreenshot').value = '';
+  document.getElementById('entryStatus').value = 'done';
+  document.getElementById('modalTitle').textContent = segment === 'analysis' ? 'Add Analysis' : 'Add Progress Entry';
+  document.getElementById('addModal').classList.remove('hidden');
+}
+
+function closeModal() { document.getElementById('addModal').classList.add('hidden'); }
+
+function saveEntry(e) {
+  e.preventDefault();
+  const engineId = document.getElementById('entryEngine').value;
+  const segment = document.getElementById('entrySegment').value;
+  const entry = {
+    date: document.getElementById('entryDate').value,
+    title: document.getElementById('entryTitle').value,
+    details: document.getElementById('entryDetails').value,
+    screenshot: document.getElementById('entryScreenshot').value,
+    status: document.getElementById('entryStatus').value,
+    createdAt: new Date().toISOString()
+  };
+  if(segment === 'progress') DATA.progress[engineId].unshift(entry);
+  else DATA.analysis[engineId].unshift(entry);
+  save();
+  closeModal();
+  render();
+}
+
+function deleteEntry(engineId, segment, index) {
+  if(!confirm('Delete this entry?')) return;
+  if(segment === 'progress') DATA.progress[engineId].splice(index, 1);
+  else DATA.analysis[engineId].splice(index, 1);
+  save();
+  render();
+}
+
+function openStrategyEdit(engineId) {
+  const strat = DATA.strategies[engineId];
+  document.getElementById('stratEngine').value = engineId;
+  document.getElementById('stratFrequency').value = strat.frequency || '';
+  document.getElementById('stratKPIs').value = strat.kpis || '';
+  document.getElementById('stratPillars').value = strat.pillars || '';
+  document.getElementById('stratAudience').value = strat.audience || '';
+  document.getElementById('stratNotes').value = strat.notes || '';
+  const engine = ENGINES.find(e => e.id === engineId);
+  document.getElementById('strategyModalTitle').textContent = `Edit Strategy · ${engine.name}`;
+  document.getElementById('strategyModal').classList.remove('hidden');
+}
+
+function closeStrategyModal() { document.getElementById('strategyModal').classList.add('hidden'); }
+
+function saveStrategy(e) {
+  e.preventDefault();
+  const engineId = document.getElementById('stratEngine').value;
+  DATA.strategies[engineId] = {
+    frequency: document.getElementById('stratFrequency').value,
+    kpis: document.getElementById('stratKPIs').value,
+    pillars: document.getElementById('stratPillars').value,
+    audience: document.getElementById('stratAudience').value,
+    notes: document.getElementById('stratNotes').value
+  };
+  save();
+  closeStrategyModal();
+  render();
+}
+
+// ─── Export ───
+function exportData() {
+  const blob = new Blob([JSON.stringify(DATA, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `luminora-cmo-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+}
+
+// ─── Init ───
+render();
+if(DATA.lastUpdated) {
+  document.getElementById('lastUpdated').textContent = 'Last saved ' + new Date(DATA.lastUpdated).toLocaleString();
+}
+</script>
+
+</body>
+</html>
