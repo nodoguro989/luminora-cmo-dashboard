@@ -49,7 +49,7 @@ tailwind.config = {
 <header class="bg-white border-b border-lum-200 flex-shrink-0">
   <div class="px-4 md:px-6 py-3 flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <div class="w-8 h-8 rounded-full bg-gradient-to-br from-rose-300 to-rose-500 flex items-center justify-center text-white text-sm" title="Candice">🌸</div>
+      <div class="w-8 h-8 rounded-full overflow-hidden flex-shrink-0" title="Candice"><img src="assets/candice-avatar.jpeg" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='🌸'" /></div>
       <div>
         <h1 class="text-sm font-semibold text-lum-900">Luminora CMO</h1>
         <p class="text-[10px] text-lum-400 hidden md:block">Candice · Marketing Operations</p>
@@ -228,6 +228,7 @@ function defaultData() {
 }
 
 // ─── Seed Data ───
+const ASSET_BASE = 'assets/';
 const ACCOUNTS = {
   'app-ig-frases': {
     handle: '@luminora.frasesdiarias',
@@ -237,7 +238,7 @@ const ACCOUNTS = {
     followers: 4,
     posts: 16,
     status: 'Active',
-    profilePic: '',
+    profilePic: ASSET_BASE + 'luminora-logo-dark.png',
     fbLinked: 'Luminora Daily Calm Quotes'
   },
   'app-ig-calm': {
@@ -248,7 +249,7 @@ const ACCOUNTS = {
     followers: 7,
     posts: 15,
     status: 'Inactive',
-    profilePic: '',
+    profilePic: ASSET_BASE + 'luminora-logo-blue.png',
     fbLinked: 'Luminora: Your Daily Cup of Calm'
   },
   'app-tt': {
@@ -259,7 +260,7 @@ const ACCOUNTS = {
     followers: 0,
     posts: 0,
     status: 'Planned',
-    profilePic: ''
+    profilePic: ASSET_BASE + 'luminora-logo-dark.png'
   },
   'app-red': {
     handle: 'Luminora 正念学习',
@@ -270,7 +271,7 @@ const ACCOUNTS = {
     posts: 13,
     saves: 161,
     status: 'Active',
-    profilePic: ''
+    profilePic: ASSET_BASE + 'luminora-logo-dark.png'
   },
   'candice-ig': {
     handle: 'TBD — after avatar',
@@ -280,7 +281,7 @@ const ACCOUNTS = {
     followers: 0,
     posts: 0,
     status: 'Planned',
-    profilePic: ''
+    profilePic: ASSET_BASE + 'candice-avatar.jpeg'
   },
   'candice-tt': {
     handle: 'TBD — after avatar',
@@ -290,7 +291,7 @@ const ACCOUNTS = {
     followers: 0,
     posts: 0,
     status: 'Planned',
-    profilePic: ''
+    profilePic: ASSET_BASE + 'candice-avatar.jpeg'
   },
   'candice-red': {
     handle: 'TBD — after avatar',
@@ -300,7 +301,7 @@ const ACCOUNTS = {
     followers: 0,
     posts: 0,
     status: 'Planned',
-    profilePic: ''
+    profilePic: ASSET_BASE + 'candice-avatar.jpeg'
   },
   'outreach': {
     handle: 'Email outreach',
@@ -308,7 +309,7 @@ const ACCOUNTS = {
     url: 'https://luminora-marketing.vercel.app',
     bio: 'Creator & blogger outreach via marketing portal',
     status: 'Active',
-    profilePic: ''
+    profilePic: ASSET_BASE + 'luminora-logo-blue.png'
   },
   'journal': {
     handle: 'luminoradaily.com/journal',
@@ -317,7 +318,7 @@ const ACCOUNTS = {
     bio: '8 articles published (Jan 2026). SEO strategy targeting "calm apps without audio".',
     posts: 8,
     status: 'Active',
-    profilePic: ''
+    profilePic: ASSET_BASE + 'luminora-logo-blue.png'
   }
 };
 
@@ -543,7 +544,7 @@ function renderAccountBar(el) {
   el.innerHTML = `<div class="px-4 md:px-6 py-3 flex flex-col md:flex-row md:items-center gap-3">
     <div class="flex items-center gap-3 flex-shrink-0">
       <div class="w-10 h-10 rounded-full bg-lum-200 flex items-center justify-center text-lum-500 text-lg overflow-hidden flex-shrink-0">
-        ${acct.profilePic ? `<img src="${acct.profilePic}" class="w-full h-full object-cover" />` : acct.platform === 'Instagram' ? '📸' : acct.platform === 'TikTok' ? '🎵' : acct.platform === '小红书' ? '📕' : '📧'}
+        ${acct.profilePic ? `<img src="${acct.profilePic}" class="w-full h-full object-cover" onerror="this.style.display='none';this.parentElement.textContent='${acct.platform === 'Instagram' ? '📸' : acct.platform === 'TikTok' ? '🎵' : acct.platform === '小红书' ? '📕' : '📧'}'" />` : acct.platform === 'Instagram' ? '📸' : acct.platform === 'TikTok' ? '🎵' : acct.platform === '小红书' ? '📕' : '📧'}
       </div>
       <div>
         <div class="flex items-center gap-2">
