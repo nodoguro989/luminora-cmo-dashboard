@@ -302,7 +302,13 @@ const SEED = {
   }
 };
 
-let DATA = JSON.parse(localStorage.getItem('luminora-cmo') || 'null') || defaultData();
+const DATA_VERSION = 2;
+let DATA = JSON.parse(localStorage.getItem('luminora-cmo') || 'null');
+// Force reset if version mismatch or corrupted data
+if(!DATA || DATA._version !== DATA_VERSION) {
+  DATA = defaultData();
+  DATA._version = DATA_VERSION;
+}
 // Migrate: ensure all engine keys exist
 ALL_ENGINES.forEach(e => {
   if(!DATA.strategies[e.id]) DATA.strategies[e.id] = { frequency:'', kpis:'', pillars:'', audience:'', notes:'' };
