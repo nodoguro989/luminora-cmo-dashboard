@@ -10,8 +10,8 @@ tailwind.config = {
   theme: {
     extend: {
       colors: {
-        lum: { 50:'#faf9f7', 100:'#f0eeea', 200:'#e0dcd5', 300:'#c4bfb4', 400:'#a39c8e', 500:'#87806f', 600:'#6b6556', 700:'#504c41', 800:'#38352e', 900:'#22201c', 950:'#141310' },
-        accent: { DEFAULT:'#8b7355', light:'#a68e6f', dark:'#6b5a42' },
+        lum: { 50:'#faf8f8', 100:'#f2eeee', 200:'#e3dcd9', 300:'#c4b8b4', 400:'#a3928e', 500:'#7a6560', 600:'#5c4540', 700:'#45302b', 800:'#2e1c18', 900:'#1e0e0a', 950:'#120805' },
+        accent: { DEFAULT:'#7a2e2e', light:'#9b4a4a', dark:'#5a1e1e' },
       },
     }
   }
@@ -22,20 +22,20 @@ tailwind.config = {
   body { font-family: 'Inter', sans-serif; }
   .vtab { transition: all 0.15s ease; border-left: 3px solid transparent; }
   .vtab:hover { background: #f0eeea; }
-  .vtab.active { background: #f0eeea; border-left-color: #8b7355; color: #22201c; font-weight: 600; }
+  .vtab.active { background: #f2eeee; border-left-color: #7a2e2e; color: #1e0e0a; font-weight: 600; }
   .htab { transition: all 0.15s ease; border-bottom: 2px solid transparent; }
-  .htab:hover { color: #6b6556; }
-  .htab.active { border-bottom-color: #8b7355; color: #8b7355; font-weight: 600; }
+  .htab:hover { color: #45302b; }
+  .htab.active { border-bottom-color: #7a2e2e; color: #7a2e2e; font-weight: 600; }
   .segtab { transition: all 0.15s ease; border-bottom: 2px solid transparent; }
-  .segtab:hover { color: #6b6556; }
+  .segtab:hover { color: #45302b; }
   .segtab.active { font-weight: 600; }
-  .segtab.active.seg-progress { border-bottom-color: #5b8a4a; color: #5b8a4a; }
-  .segtab.active.seg-analysis { border-bottom-color: #b08040; color: #b08040; }
+  .segtab.active.seg-progress { border-bottom-color: #4a7a3a; color: #4a7a3a; }
+  .segtab.active.seg-analysis { border-bottom-color: #7a2e2e; color: #7a2e2e; }
   .modal-overlay { background: rgba(20,19,16,0.5); backdrop-filter: blur(4px); }
   .screenshot-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; }
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #c4bfb4; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb { background: #c4b8b4; border-radius: 3px; }
 </style>
 </head>
 <body class="bg-lum-50 text-lum-900 h-screen flex flex-col overflow-hidden">
@@ -189,7 +189,8 @@ tailwind.config = {
 // ─── Data Model ───
 const CATEGORIES = [
   { id:'app', name:'App Content', emoji:'📱', platforms:[
-    { id:'app-ig', name:'Instagram & Meta', emoji:'📸' },
+    { id:'app-ig-frases', name:'@frasesdiarias', emoji:'📸' },
+    { id:'app-ig-calm', name:'@daily_cup_of_calm', emoji:'📸' },
     { id:'app-tt', name:'TikTok', emoji:'🎵' },
     { id:'app-red', name:'小红书', emoji:'📕' },
   ]},
@@ -219,12 +220,19 @@ function defaultData() {
 // ─── Seed Data ───
 const SEED = {
   strategies: {
-    'app-ig': {
+    'app-ig-frases': {
       frequency: '5x/week',
       kpis: 'Follower growth (weekly)\nSaves & shares per post\nBio link clicks to App Store\nEngagement rate > 5%',
-      pillars: 'Illumination cards (bilingual quote visuals)\nApp feature demos (TAP TO FLIP, ASK, SEEK)\nBehind-the-scenes (how quotes are curated)\nUser moments ("when you need calm between meetings")',
-      audience: 'English + Spanish speakers seeking calm without audio. Overstimulated digital users, 22–40. People who find Calm/Headspace too heavy.',
-      notes: 'Two accounts: @luminora.frasesdiarias (Spanish/bilingual) and @luminora_daily_cup_of_calm (English/philosophical). Post simultaneously to Facebook via Meta Business Suite.'
+      pillars: 'Bilingual EN/ES illumination cards\nLanguage-learning angle ("aprende inglés con calma")\nApp feature demos in Spanish\nCultural calm moments (café, naturaleza, rituales)',
+      audience: 'Spanish speakers + bilingual learners seeking calm. Latin American and Spanish market. Language learners who want mindfulness + vocabulary.',
+      notes: '@luminora.frasesdiarias — 16 posts, 4 followers. Spanish/bilingual account. Posts simultaneously to Facebook "Luminora Daily Calm Quotes" via Meta Business Suite.'
+    },
+    'app-ig-calm': {
+      frequency: '5x/week',
+      kpis: 'Follower growth (weekly)\nSaves & shares per post\nBio link clicks to App Store\nEngagement rate > 5%',
+      pillars: 'Philosophical illumination cards\nApp feature demos (TAP TO FLIP, ASK, SEEK)\nBehind-the-scenes (how quotes are curated)\nUser moments ("when you need calm between meetings")\nI Ching wisdom highlights',
+      audience: 'English speakers seeking calm without audio. Overstimulated digital users, 22–40. Philosophy/self-improvement enthusiasts. People who find Calm/Headspace too heavy.',
+      notes: '@luminora_daily_cup_of_calm — 15 posts, 7 followers. English/philosophical account. Currently INACTIVE in Business Manager — needs revival. Posts to Facebook "Luminora: Your Daily Cup of Calm".'
     },
     'app-tt': {
       frequency: '3x/week (ramp to 5x after Candice avatar)',
@@ -277,7 +285,7 @@ const SEED = {
     }
   },
   progress: {
-    'app-ig': [{
+    'app-ig-frases': [{
       date: '2026-02-18',
       title: 'First test post — bilingual quote card on @luminora.frasesdiarias',
       details: 'Published bilingual EN/CN quote: "Not every low moment is a verdict; sometimes it\'s just weather." / "并非每一个低谷都是判决；有时候只是天气。"\n\nCaption in Spanish + English with hashtags. Posted via Meta Business Suite to both Instagram and Facebook simultaneously.\n\n✅ Confirmed full posting access to both IG accounts and both FB pages.',
@@ -310,7 +318,7 @@ for(const [eid, entries] of Object.entries(SEED.progress || {})) {
 if(seeded) save();
 
 let currentCategory = 'app';
-let currentPlatform = 'app-ig';
+let currentPlatform = 'app-ig-frases';
 let currentSegment = 'progress'; // 'progress' or 'analysis'
 
 function save() {
