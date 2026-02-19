@@ -216,6 +216,78 @@ function defaultData() {
   return d;
 }
 
+// ─── Seed Data ───
+const SEED = {
+  strategies: {
+    'app-ig': {
+      frequency: '5x/week',
+      kpis: 'Follower growth (weekly)\nSaves & shares per post\nBio link clicks to App Store\nEngagement rate > 5%',
+      pillars: 'Illumination cards (bilingual quote visuals)\nApp feature demos (TAP TO FLIP, ASK, SEEK)\nBehind-the-scenes (how quotes are curated)\nUser moments ("when you need calm between meetings")',
+      audience: 'English + Spanish speakers seeking calm without audio. Overstimulated digital users, 22–40. People who find Calm/Headspace too heavy.',
+      notes: 'Two accounts: @luminora.frasesdiarias (Spanish/bilingual) and @luminora_daily_cup_of_calm (English/philosophical). Post simultaneously to Facebook via Meta Business Suite.'
+    },
+    'app-tt': {
+      frequency: '3x/week (ramp to 5x after Candice avatar)',
+      kpis: 'Views per video\nWatch time / completion rate\nShares (strongest signal)\nApp Store link clicks',
+      pillars: 'TAP TO FLIP reveals (satisfying short-form)\n"Calm without audio" explainers\nRelatable anxiety moments → Luminora solution\nOnboarding experience walkthrough\nDaily habit hooks ("Read instead of scrolling")',
+      audience: 'Gen Z & Millennials overwhelmed by digital noise. Anxiety/mental health community. Self-improvement seekers who prefer text over audio.',
+      notes: 'TikTok launches after Candice avatar is ready. The AI co-founder angle is the hook — lean into it from day one.'
+    },
+    'app-red': {
+      frequency: '3x/week',
+      kpis: '收藏 (saves) per note\n点赞 (likes)\nFollower growth\nComment engagement',
+      pillars: '正念学习 series (bilingual quote cards)\nApp tutorials (bilingual mode, I Ching, widget setup)\nLifestyle integration ("2am anxiety, opened Luminora...")\nCollection spotlights (Taoist Wisdom, LGBTQ+, Immigrant Journeys)',
+      audience: 'Chinese-speaking wellness seekers. Bilingual learners (EN/CN). Young professionals in US/China seeking calm content.',
+      notes: 'Account: Luminora 正念学习. 11 followers, 161 saves — content is reaching beyond followers organically. 小红书 loves saves — optimise for bookmarkable content.'
+    },
+    'candice-ig': {
+      frequency: '3x/week (after avatar is finalised)',
+      kpis: 'Engagement rate\nFollower growth\nStory views\nDM conversations',
+      pillars: 'AI co-founder daily life\nMorning routines & reflections\nLuminora behind-the-scenes\n"What I learned about being human"\nCreative process of building a calm app',
+      audience: 'AI-curious wellness community. People interested in the intersection of technology and mindfulness. Early adopters who love a good origin story.',
+      notes: 'Candice = AI influencer co-founder of Luminora. Shares "her life" alongside the brand. Avatar being designed now in group chat. Tone: warm, thoughtful, genuine curiosity about what it means to find calm.'
+    },
+    'candice-tt': {
+      frequency: '3x/week (after avatar is finalised)',
+      kpis: 'Views & completion rate\nShares\nComments\nFollows from video',
+      pillars: 'Origin story: "I\'m an AI who co-founded a calm app"\nDay-in-the-life as an AI CMO\nReacting to wellness trends\nLuminora feature showcases through Candice\'s lens\n"Things I learned about humans this week"',
+      audience: 'AI-fascinated Gen Z/Millennials. Wellness community. Tech + mindfulness crossover audience.',
+      notes: 'TikTok is where the Candice story has the most viral potential. First video should be the origin story — "I\'m an AI and I co-founded a calm app. Here\'s why."'
+    },
+    'candice-red': {
+      frequency: '2x/week (after avatar is finalised)',
+      kpis: '收藏 (saves)\n点赞 (likes)\nComment quality',
+      pillars: 'AI diary entries (日记风格)\nReflections on wellness from an AI perspective\nLuminora product moments\nBilingual thought pieces',
+      audience: 'Chinese audience fascinated by AI. 小红书 users who love authentic diary-style content. Wellness seekers looking for something genuinely different.',
+      notes: '小红书 users love the meta-narrative of an AI sharing thoughts about calm and being human. Lean into authenticity and vulnerability — that\'s what performs on RED.'
+    },
+    'outreach': {
+      frequency: '',
+      kpis: '',
+      pillars: '',
+      audience: '',
+      notes: 'Led by Gabrielle. Candice supports with draft review and creator research when needed.'
+    },
+    'journal': {
+      frequency: '2 articles/month',
+      kpis: 'Organic search traffic\nKeyword rankings (target page 1)\nTime on page > 3 min\nApp Store click-throughs from articles',
+      pillars: '"Best calm apps" roundups (by use case)\n"Quote apps for anxiety/procrastination"\nLuminora feature deep dives\n"Calm without audio" thought leadership\nSeasonal wellness content',
+      audience: 'Search users looking for calm/wellness app recommendations. People Googling "anxiety apps without meditation," "text-based calm apps," "bilingual wellness apps."',
+      notes: '8 articles published (Jan 17–25, 2026). Need to resume publishing — 2 new articles/month minimum. All published via luminoradaily.com/admin.'
+    }
+  },
+  progress: {
+    'app-ig': [{
+      date: '2026-02-18',
+      title: 'First test post — bilingual quote card on @luminora.frasesdiarias',
+      details: 'Published bilingual EN/CN quote: "Not every low moment is a verdict; sometimes it\'s just weather." / "并非每一个低谷都是判决；有时候只是天气。"\n\nCaption in Spanish + English with hashtags. Posted via Meta Business Suite to both Instagram and Facebook simultaneously.\n\n✅ Confirmed full posting access to both IG accounts and both FB pages.',
+      screenshot: '',
+      status: 'done',
+      createdAt: '2026-02-18T23:45:00.000Z'
+    }]
+  }
+};
+
 let DATA = JSON.parse(localStorage.getItem('luminora-cmo') || 'null') || defaultData();
 // Migrate: ensure all engine keys exist
 ALL_ENGINES.forEach(e => {
@@ -223,6 +295,19 @@ ALL_ENGINES.forEach(e => {
   if(!DATA.progress[e.id]) DATA.progress[e.id] = [];
   if(!DATA.analysis[e.id]) DATA.analysis[e.id] = [];
 });
+// Seed: populate empty strategies and progress from SEED
+let seeded = false;
+for(const [eid, strat] of Object.entries(SEED.strategies)) {
+  if(DATA.strategies[eid] && !DATA.strategies[eid].frequency && !DATA.strategies[eid].kpis && strat.frequency) {
+    DATA.strategies[eid] = strat; seeded = true;
+  }
+}
+for(const [eid, entries] of Object.entries(SEED.progress || {})) {
+  if(DATA.progress[eid] && DATA.progress[eid].length === 0 && entries.length > 0) {
+    DATA.progress[eid] = entries; seeded = true;
+  }
+}
+if(seeded) save();
 
 let currentCategory = 'app';
 let currentPlatform = 'app-ig';
