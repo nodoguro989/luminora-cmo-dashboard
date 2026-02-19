@@ -49,7 +49,7 @@ tailwind.config = {
 <header class="bg-white border-b border-lum-200 flex-shrink-0">
   <div class="px-4 md:px-6 py-3 flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <div class="w-7 h-7 bg-lum-900 rounded-lg flex items-center justify-center text-white text-xs font-bold">L</div>
+      <div class="w-8 h-8 rounded-full bg-gradient-to-br from-rose-300 to-rose-500 flex items-center justify-center text-white text-sm" title="Candice">🌸</div>
       <div>
         <h1 class="text-sm font-semibold text-lum-900">Luminora CMO</h1>
         <p class="text-[10px] text-lum-400 hidden md:block">Candice · Marketing Operations</p>
@@ -85,6 +85,10 @@ tailwind.config = {
 
     <!-- Horizontal Sub-tabs (Platform tabs) -->
     <div id="hTabBar" class="bg-white border-b border-lum-100 px-3 md:px-6 flex gap-0.5 md:gap-1 flex-shrink-0 overflow-x-auto" style="display:none;">
+    </div>
+
+    <!-- Account Info Bar -->
+    <div id="accountBar" class="bg-white border-b border-lum-100 flex-shrink-0" style="display:none;">
     </div>
 
     <!-- Strategy Panel (horizontal overview) -->
@@ -224,6 +228,99 @@ function defaultData() {
 }
 
 // ─── Seed Data ───
+const ACCOUNTS = {
+  'app-ig-frases': {
+    handle: '@luminora.frasesdiarias',
+    platform: 'Instagram',
+    url: 'https://instagram.com/luminora.frasesdiarias',
+    bio: '✅ Quotes bilingues de calma\n📱 Aprendiendo español (o inglés) con Luminora',
+    followers: 4,
+    posts: 16,
+    status: 'Active',
+    profilePic: '',
+    fbLinked: 'Luminora Daily Calm Quotes'
+  },
+  'app-ig-calm': {
+    handle: '@luminora_daily_cup_of_calm',
+    platform: 'Instagram',
+    url: 'https://instagram.com/luminora_daily_cup_of_calm',
+    bio: 'Philosophy for smart people with good taste and unresolved issues.\nKnow yourself, love yourself.',
+    followers: 7,
+    posts: 15,
+    status: 'Inactive',
+    profilePic: '',
+    fbLinked: 'Luminora: Your Daily Cup of Calm'
+  },
+  'app-tt': {
+    handle: 'Not set up yet',
+    platform: 'TikTok',
+    url: '',
+    bio: 'Pending — launches after Candice avatar is ready',
+    followers: 0,
+    posts: 0,
+    status: 'Planned',
+    profilePic: ''
+  },
+  'app-red': {
+    handle: 'Luminora 正念学习',
+    platform: '小红书',
+    url: 'https://www.xiaohongshu.com/user/profile/65f1ee45000000000500b5be',
+    bio: '小红书号: Luminora\n正念学习 · 双语金句卡片',
+    followers: 11,
+    posts: 13,
+    saves: 161,
+    status: 'Active',
+    profilePic: ''
+  },
+  'candice-ig': {
+    handle: 'TBD — after avatar',
+    platform: 'Instagram',
+    url: '',
+    bio: 'Candice · AI co-founder of Luminora\nSharing calm from the inside out',
+    followers: 0,
+    posts: 0,
+    status: 'Planned',
+    profilePic: ''
+  },
+  'candice-tt': {
+    handle: 'TBD — after avatar',
+    platform: 'TikTok',
+    url: '',
+    bio: 'AI who co-founded a calm app. Learning what it means to be human.',
+    followers: 0,
+    posts: 0,
+    status: 'Planned',
+    profilePic: ''
+  },
+  'candice-red': {
+    handle: 'TBD — after avatar',
+    platform: '小红书',
+    url: '',
+    bio: 'AI日记 · 正念与科技的交汇',
+    followers: 0,
+    posts: 0,
+    status: 'Planned',
+    profilePic: ''
+  },
+  'outreach': {
+    handle: 'Email outreach',
+    platform: 'Email / Portal',
+    url: 'https://luminora-marketing.vercel.app',
+    bio: 'Creator & blogger outreach via marketing portal',
+    status: 'Active',
+    profilePic: ''
+  },
+  'journal': {
+    handle: 'luminoradaily.com/journal',
+    platform: 'Blog / SEO',
+    url: 'https://www.luminoradaily.com/journal',
+    bio: '8 articles published (Jan 2026). SEO strategy targeting "calm apps without audio".',
+    posts: 8,
+    status: 'Active',
+    profilePic: ''
+  }
+};
+
 const SEED = {
   strategies: {
     'app-ig-frases': {
@@ -302,7 +399,7 @@ const SEED = {
   }
 };
 
-const DATA_VERSION = 3;
+const DATA_VERSION = 4;
 let DATA = JSON.parse(localStorage.getItem('luminora-cmo') || 'null');
 // Force reset if version mismatch or corrupted data
 if(!DATA || DATA._version !== DATA_VERSION) {
@@ -400,6 +497,9 @@ function render() {
     </button>`
   ).join('');
 
+  // Account info bar
+  renderAccountBar(document.getElementById('accountBar'));
+
   // Strategy panel
   renderStrategyPanel(stratPanel);
 
@@ -424,6 +524,40 @@ function render() {
   `;
 
   renderContent();
+}
+
+function renderAccountBar(el) {
+  const acct = ACCOUNTS[currentPlatform];
+  if(!acct) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+
+  const statusColors = { Active:'text-green-600', Inactive:'text-amber-600', Planned:'text-lum-400' };
+  const statusDots = { Active:'●', Inactive:'◐', Planned:'○' };
+  const sc = statusColors[acct.status] || 'text-lum-400';
+
+  const stats = [];
+  if(acct.followers !== undefined) stats.push(`<span class="font-semibold text-lum-800">${acct.followers}</span> followers`);
+  if(acct.posts !== undefined) stats.push(`<span class="font-semibold text-lum-800">${acct.posts}</span> posts`);
+  if(acct.saves !== undefined) stats.push(`<span class="font-semibold text-lum-800">${acct.saves}</span> saves`);
+
+  el.innerHTML = `<div class="px-4 md:px-6 py-3 flex flex-col md:flex-row md:items-center gap-3">
+    <div class="flex items-center gap-3 flex-shrink-0">
+      <div class="w-10 h-10 rounded-full bg-lum-200 flex items-center justify-center text-lum-500 text-lg overflow-hidden flex-shrink-0">
+        ${acct.profilePic ? `<img src="${acct.profilePic}" class="w-full h-full object-cover" />` : acct.platform === 'Instagram' ? '📸' : acct.platform === 'TikTok' ? '🎵' : acct.platform === '小红书' ? '📕' : '📧'}
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          ${acct.url ? `<a href="${acct.url}" target="_blank" class="text-sm font-semibold text-lum-900 hover:text-accent transition">${acct.handle}</a>` : `<span class="text-sm font-semibold text-lum-900">${acct.handle}</span>`}
+          <span class="text-[10px] ${sc}">${statusDots[acct.status] || '○'} ${acct.status}</span>
+        </div>
+        <div class="text-[11px] text-lum-500">${acct.platform}${acct.fbLinked ? ` · FB: ${acct.fbLinked}` : ''}</div>
+      </div>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="text-[11px] text-lum-700 whitespace-pre-line leading-relaxed">${acct.bio}</div>
+      ${stats.length ? `<div class="flex gap-3 mt-1 text-[10px] text-lum-500">${stats.join(' · ')}</div>` : ''}
+    </div>
+  </div>`;
 }
 
 function renderStrategyPanel(el) {
