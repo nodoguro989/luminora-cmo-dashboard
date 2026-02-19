@@ -37,50 +37,54 @@ tailwind.config = {
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #c4b8b4; border-radius: 3px; }
+  @media (max-width: 768px) {
+    .vtab { border-left: none !important; border-bottom: 3px solid transparent; }
+    .vtab.active { border-bottom-color: #7a2e2e; border-left-color: transparent !important; }
+  }
 </style>
 </head>
 <body class="bg-lum-50 text-lum-900 h-screen flex flex-col overflow-hidden">
 
 <!-- Header -->
 <header class="bg-white border-b border-lum-200 flex-shrink-0">
-  <div class="px-6 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-3">
+  <div class="px-4 md:px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
       <div class="w-7 h-7 bg-lum-900 rounded-lg flex items-center justify-center text-white text-xs font-bold">L</div>
       <div>
-        <h1 class="text-sm font-semibold text-lum-900">Luminora CMO Dashboard</h1>
-        <p class="text-[10px] text-lum-400">Candice · Marketing Operations</p>
+        <h1 class="text-sm font-semibold text-lum-900">Luminora CMO</h1>
+        <p class="text-[10px] text-lum-400 hidden md:block">Candice · Marketing Operations</p>
       </div>
     </div>
-    <div class="flex items-center gap-3">
-      <span id="lastUpdated" class="text-[10px] text-lum-400"></span>
+    <div class="flex items-center gap-2">
+      <span id="lastUpdated" class="text-[10px] text-lum-400 hidden md:inline"></span>
       <button onclick="exportData()" class="text-[11px] px-2.5 py-1 bg-lum-100 rounded text-lum-600 hover:bg-lum-200 transition">Export</button>
     </div>
   </div>
 </header>
 
 <!-- Main Layout -->
-<div class="flex flex-1 overflow-hidden">
+<div class="flex flex-col md:flex-row flex-1 overflow-hidden">
 
-  <!-- Vertical Tabs (Left Sidebar) -->
-  <nav class="w-48 flex-shrink-0 bg-white border-r border-lum-100 flex flex-col py-2">
-    <button onclick="setCategory('app')" id="vtab-app" class="vtab text-left px-4 py-2.5 text-sm text-lum-600 flex items-center gap-2.5 active">
+  <!-- Vertical Tabs (Left Sidebar on desktop, horizontal on mobile) -->
+  <nav class="flex md:flex-col md:w-48 flex-shrink-0 bg-white border-b md:border-b-0 md:border-r border-lum-100 md:py-2 overflow-x-auto">
+    <button onclick="setCategory('app')" id="vtab-app" class="vtab text-left px-4 py-2.5 text-sm text-lum-600 flex items-center gap-2 whitespace-nowrap active">
       <span class="text-base">📱</span><span>App Content</span>
     </button>
-    <button onclick="setCategory('candice')" id="vtab-candice" class="vtab text-left px-4 py-2.5 text-sm text-lum-600 flex items-center gap-2.5">
+    <button onclick="setCategory('candice')" id="vtab-candice" class="vtab text-left px-4 py-2.5 text-sm text-lum-600 flex items-center gap-2 whitespace-nowrap">
       <span class="text-base">🌸</span><span>Candice Personal</span>
     </button>
-    <div class="h-px bg-lum-100 my-1.5 mx-3"></div>
-    <button onclick="setCategory('outreach-journal')" id="vtab-outreach-journal" class="vtab text-left px-4 py-2.5 text-sm text-lum-600 flex items-center gap-2.5">
+    <div class="hidden md:block h-px bg-lum-100 my-1.5 mx-3"></div>
+    <button onclick="setCategory('outreach-journal')" id="vtab-outreach-journal" class="vtab text-left px-4 py-2.5 text-sm text-lum-600 flex items-center gap-2 whitespace-nowrap">
       <span class="text-base">📧</span><span>Outreach & Journal</span>
     </button>
-    <div class="flex-1"></div>
+    <div class="hidden md:block flex-1"></div>
   </nav>
 
   <!-- Content Area -->
   <div class="flex-1 flex flex-col overflow-hidden">
 
     <!-- Horizontal Sub-tabs (Platform tabs) -->
-    <div id="hTabBar" class="bg-white border-b border-lum-100 px-6 flex gap-1 flex-shrink-0" style="display:none;">
+    <div id="hTabBar" class="bg-white border-b border-lum-100 px-3 md:px-6 flex gap-0.5 md:gap-1 flex-shrink-0 overflow-x-auto" style="display:none;">
     </div>
 
     <!-- Strategy Panel (horizontal overview) -->
@@ -88,11 +92,11 @@ tailwind.config = {
     </div>
 
     <!-- Segment Tabs (Progress Log / Analysis) -->
-    <div id="segTabBar" class="bg-lum-50 border-b border-lum-100 px-6 flex gap-1 flex-shrink-0" style="display:none;">
+    <div id="segTabBar" class="bg-lum-50 border-b border-lum-100 px-3 md:px-6 flex gap-0.5 md:gap-1 flex-shrink-0 overflow-x-auto" style="display:none;">
     </div>
 
     <!-- Scrollable Content -->
-    <div id="mainContent" class="flex-1 overflow-y-auto px-6 py-5">
+    <div id="mainContent" class="flex-1 overflow-y-auto px-4 md:px-6 py-4 md:py-5">
     </div>
 
   </div>
@@ -422,19 +426,19 @@ function renderStrategyPanel(el) {
   el.style.display = 'block';
 
   if(!hasContent) {
-    el.innerHTML = `<div class="px-6 py-3 flex items-center justify-between">
+    el.innerHTML = `<div class="px-4 md:px-6 py-3 flex items-center justify-between">
       <span class="text-xs text-lum-400 italic">No strategy set yet</span>
       <button onclick="openStrategyEdit('${currentPlatform}')" class="text-[11px] text-accent hover:text-accent-dark transition font-medium">+ Set Strategy</button>
     </div>`;
     return;
   }
 
-  el.innerHTML = `<div class="px-6 py-3">
+  el.innerHTML = `<div class="px-4 md:px-6 py-3">
     <div class="flex items-center justify-between mb-2">
       <span class="text-[10px] font-semibold uppercase tracking-wider text-lum-400">Strategy</span>
       <button onclick="openStrategyEdit('${currentPlatform}')" class="text-[11px] text-accent hover:text-accent-dark transition">Edit</button>
     </div>
-    <div class="grid grid-cols-4 gap-4 text-xs">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 text-xs">
       <div>
         <span class="text-[10px] text-lum-400 block">Frequency</span>
         <span class="text-lum-800">${strat.frequency || '—'}</span>
