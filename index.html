@@ -38,6 +38,23 @@ tailwind.config = {
   .collapse-chevron.collapsed { transform: rotate(-90deg); }
   .modal-overlay { background: rgba(20,19,16,0.5); backdrop-filter: blur(4px); }
   .screenshot-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; }
+
+  /* ── Schedule List View ── */
+  .schedule-list { display: flex; flex-direction: column; gap: 2px; }
+  .schedule-row { background: white; border: 1px solid #e8e4df; border-radius: 10px; overflow: hidden; transition: box-shadow 0.15s; }
+  .schedule-row:hover, .schedule-row-open { border-color: #c8b89a; box-shadow: 0 1px 6px rgba(0,0,0,0.06); }
+  .schedule-row-header { display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer; user-select: none; }
+  .schedule-row-header:hover { background: #faf8f5; }
+  .schedule-date-col { flex-shrink: 0; width: 110px; }
+  .schedule-date-text { font-size: 12px; font-weight: 600; color: #5a4a3a; white-space: nowrap; }
+  .schedule-title-col { flex: 1; display: flex; align-items: center; gap-6; flex-wrap: wrap; gap: 6px; min-width: 0; }
+  .schedule-title-text { font-size: 13px; color: #2a1a0a; font-weight: 500; line-height: 1.3; }
+  .schedule-thumb-col { flex-shrink: 0; }
+  .schedule-thumb-sm { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid #e8e4df; }
+  .schedule-thumb-placeholder { width: 44px; height: 44px; border-radius: 6px; background: #f5f0ea; border: 1px dashed #d8cfc4; }
+  .schedule-chevron { font-size: 11px; color: #b0a090; flex-shrink: 0; transition: transform 0.15s; }
+  .schedule-comment-badge { font-size: 10px; color: #b08040; background: #fff8ee; border: 1px solid #f0d080; border-radius: 99px; padding: 1px 6px; white-space: nowrap; }
+  .schedule-expand { border-top: 1px solid #ede8e2; background: #fdfcfb; }
   /* Draft visual preview */
   .draft-preview-wrap { position: relative; flex-shrink: 0; width: 140px; }
   .draft-preview-img { width: 140px; height: 140px; object-fit: cover; border-radius: 8px; display: block; cursor: zoom-in; transition: opacity 0.15s; }
@@ -1124,6 +1141,21 @@ function renderContent() {
   main.innerHTML = html;
 }
 
+function fmtScheduleDate(dateStr) {
+  if(!dateStr) return '—';
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${days[dt.getDay()]} ${months[m-1]} ${d}`;
+}
+
+function fmtCreatedAt(iso) {
+  if(!iso) return null;
+  const dt = new Date(iso);
+  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
 function renderDrafts(el) {
   const drafts = DATA.drafts[currentPlatform] || [];
 
@@ -1131,18 +1163,24 @@ function renderDrafts(el) {
     el.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-center">
       <div class="text-4xl mb-3">✏️</div>
       <p class="text-sm text-lum-400">No content drafts yet.</p>
-      <p class="text-[11px] text-lum-300 mt-1">Candice will auto-generate drafts here for your review.</p>
+      <p class="text-[11px] text-lum-300 mt-1">Candice will generate drafts here for your review.</p>
     </div>`;
     return;
   }
 
+  // Sort by post date (chronological), then by title
+  const sorted = [...drafts]
+    .map((d,i) => ({...d, _i:i}))
+    .sort((a,b) => (a.date||'').localeCompare(b.date||'') || (a.title||'').localeCompare(b.title||''));
+
   const draftStatusColors = { draft:'bg-blue-50 text-blue-700 border-blue-200', approved:'bg-green-50 text-green-700 border-green-200', rejected:'bg-amber-50 text-amber-700 border-amber-200', posted:'bg-lum-100 text-lum-600 border-lum-200' };
-  const draftStatusLabels = { draft:'⏳ Pending', approved:'✅ Approved', rejected:'⏸ On Hold', posted:'📤 Posted' };
+  const draftStatusLabels = { draft:'⏳ Pending', approved:'✅ Approved', rejected:'⏸ Hold', posted:'📤 Posted' };
 
-  const order = { draft:0, approved:1, rejected:3, posted:2 };
-  const sorted = [...drafts].map((d,i) => ({...d, _i:i})).sort((a,b) => (order[a.status]||9) - (order[b.status]||9) || a.date.localeCompare(b.date));
+  // Group by date for display
+  let lastDate = null;
 
-  let html = '<div class="space-y-3">';
+  let html = '<div class="schedule-list">';
+
   sorted.forEach(draft => {
     const i = draft._i;
     const sc = draftStatusColors[draft.status] || draftStatusColors.draft;
@@ -1150,31 +1188,22 @@ function renderDrafts(el) {
     const isPending = draft.status === 'draft';
     const isApproved = draft.status === 'approved';
     const isVetoed = !!draft.screenshotVetoed;
+    const formattedDate = fmtScheduleDate(draft.date);
+    const expandId = `expand-${currentPlatform}-${i}`;
+    const rowId = `row-${currentPlatform}-${i}`;
 
-    // ── Visual preview block ──
-    const previewHtml = draft.screenshot ? `
-      <div class="draft-preview-wrap">
-        <img src="${draft.screenshot}"
-          class="draft-preview-img ${isVetoed ? 'vetoed' : ''}"
-          onclick="openLightbox('${draft.screenshot}')"
-          onerror="this.closest('.draft-preview-wrap').style.display='none'" />
-        ${isVetoed ? `
-          <div class="draft-preview-veto-line">
-            <svg viewBox="0 0 140 140" preserveAspectRatio="none">
-              <line x1="4" y1="4" x2="136" y2="136" stroke="#cc2222" stroke-width="3" stroke-linecap="round"/>
-              <line x1="136" y1="4" x2="4" y2="136" stroke="#cc2222" stroke-width="3" stroke-linecap="round"/>
-            </svg>
-          </div>` : ''}
-        <div class="draft-preview-actions">
-          <button class="draft-preview-btn enlarge" onclick="openLightbox('${draft.screenshot}')">⤢ View</button>
-          <button class="draft-preview-btn ${isVetoed ? 'unveto' : 'veto'}"
-            onclick="toggleScreenshotVeto('${currentPlatform}',${i})">
-            ${isVetoed ? '↩ Restore' : '✕ Cross'}
-          </button>
-        </div>
-      </div>` : '';
+    // Date separator when date changes
+    const dateKey = draft.date || '—';
+    if(dateKey !== lastDate) {
+      lastDate = dateKey;
+    }
 
-    // ── Comments: support both old `comment` string and new `comments` array ──
+    // Preview thumbnail (small)
+    const thumbHtml = draft.screenshot
+      ? `<img src="${draft.screenshot}" class="schedule-thumb-sm" onerror="this.style.display='none'" />`
+      : `<div class="schedule-thumb-placeholder"></div>`;
+
+    // Comments block (for expanded view)
     const legacyComment = (draft.comment && !(draft.comments && draft.comments.length)) ? [{
       text: draft.comment, date: null, archived: false, _legacy: true
     }] : [];
@@ -1182,7 +1211,7 @@ function renderDrafts(el) {
     const activeComments = allComments.filter(c => !c.archived);
 
     const commentsHtml = activeComments.length > 0 ? `
-      <div class="text-[10px] font-semibold text-lum-400 uppercase tracking-wide mb-1.5">Feedback</div>
+      <div class="text-[10px] font-semibold text-lum-400 uppercase tracking-wide mb-1.5 mt-3">Feedback</div>
       <div class="space-y-1.5 mb-2">
         ${allComments.map((c, ci) => c.archived ? '' : `
           <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-2">
@@ -1193,36 +1222,65 @@ function renderDrafts(el) {
             <button onclick="${c._legacy ? `archiveLegacyComment('${currentPlatform}',${i})` : `archiveComment('${currentPlatform}',${i},${ci - legacyComment.length})`}"
               title="Archive — mark as addressed"
               class="flex-shrink-0 flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-lum-200 bg-white text-lum-400 hover:border-green-400 hover:text-green-600 hover:bg-green-50 transition font-medium whitespace-nowrap">
-              ✓ Archive
+              ✓ Done
             </button>
           </div>
         `).join('')}
       </div>` : '';
 
-    html += `<div class="p-4 rounded-lg bg-white border ${isPending ? 'border-blue-200' : 'border-lum-100'} group hover:shadow-sm transition">
-      <div class="flex items-start gap-4">
-        ${previewHtml}
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 mb-1.5">
-            <span class="text-[10px] px-1.5 py-0.5 rounded-full border ${sc}">${sl}</span>
-            <span class="text-[10px] text-lum-400">📅 ${draft.date}</span>
-            <button onclick="deleteEntry('${currentPlatform}','drafts',${i})" class="text-[10px] text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition ml-auto">✕</button>
-          </div>
-          <h4 class="text-sm font-semibold text-lum-900 leading-snug mb-1 ${isVetoed ? 'line-through text-lum-400' : ''}">${draft.title}</h4>
-          ${draft.details ? `<div class="text-[11px] text-lum-700 whitespace-pre-line leading-relaxed p-2.5 bg-lum-50 rounded-md mb-2 border border-lum-100">${draft.details}</div>` : ''}
+    // Full preview for expanded view
+    const fullPreviewHtml = draft.screenshot ? `
+      <div class="draft-preview-wrap">
+        <img src="${draft.screenshot}"
+          class="draft-preview-img ${isVetoed ? 'vetoed' : ''}"
+          onclick="openLightbox('${draft.screenshot}')"
+          onerror="this.closest('.draft-preview-wrap').style.display='none'" />
+        ${isVetoed ? `<div class="draft-preview-veto-line"><svg viewBox="0 0 140 140" preserveAspectRatio="none"><line x1="4" y1="4" x2="136" y2="136" stroke="#cc2222" stroke-width="3" stroke-linecap="round"/><line x1="136" y1="4" x2="4" y2="136" stroke="#cc2222" stroke-width="3" stroke-linecap="round"/></svg></div>` : ''}
+        <div class="draft-preview-actions">
+          <button class="draft-preview-btn enlarge" onclick="openLightbox('${draft.screenshot}')">⤢ View</button>
+          <button class="draft-preview-btn ${isVetoed ? 'unveto' : 'veto'}" onclick="toggleScreenshotVeto('${currentPlatform}',${i})">${isVetoed ? '↩ Restore' : '✕ Cross'}</button>
+        </div>
+      </div>` : '';
 
-          <div class="flex flex-wrap items-center gap-2 mt-2">
-            ${isPending ? `
-              <button onclick="setDraftStatus(${i},'approved')" class="px-2.5 py-1 text-[11px] bg-green-600 text-white rounded hover:bg-green-700 transition">✅ Approve</button>
-              <button onclick="setDraftStatus(${i},'rejected')" class="px-2.5 py-1 text-[11px] bg-red-100 text-red-700 rounded hover:bg-red-200 transition">⏸ Hold</button>
-            ` : ''}
-            ${isApproved ? `<span class="text-[10px] text-green-600 italic">Ready to post</span>` : ''}
-            ${draft.status === 'rejected' ? `<span class="text-[10px] text-amber-600 italic">On hold</span>` : ''}
-          </div>
+    const createdLabel = draft.createdAt ? `<span class="text-[9px] text-lum-300 ml-auto">Drafted ${fmtCreatedAt(draft.createdAt)}</span>` : '';
 
-          <div class="mt-3 border-t border-lum-100 pt-3">
+    html += `
+    <div class="schedule-row group" id="${rowId}">
+      <!-- ── COLLAPSED ROW (always visible) ── -->
+      <div class="schedule-row-header" onclick="toggleExpand('${expandId}','${rowId}')">
+        <div class="schedule-date-col">
+          <span class="schedule-date-text">${formattedDate}</span>
+        </div>
+        <div class="schedule-title-col">
+          <span class="schedule-title-text ${isVetoed ? 'line-through text-lum-400' : ''}">${draft.title}</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded-full border ${sc} ml-2 whitespace-nowrap">${sl}</span>
+          ${activeComments.length > 0 ? `<span class="schedule-comment-badge">${activeComments.length} 💬</span>` : ''}
+        </div>
+        <div class="schedule-thumb-col">${thumbHtml}</div>
+        <div class="schedule-chevron">▸</div>
+      </div>
+
+      <!-- ── EXPANDED DETAIL (hidden by default) ── -->
+      <div class="schedule-expand" id="${expandId}" style="display:none">
+        <div class="flex items-start gap-4 p-4">
+          ${fullPreviewHtml}
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+              <span class="text-[10px] px-1.5 py-0.5 rounded-full border ${sc}">${sl}</span>
+              ${createdLabel}
+              <button onclick="deleteEntry('${currentPlatform}','drafts',${i})" class="text-[10px] text-red-400 hover:text-red-600 transition ml-1">✕ Delete</button>
+            </div>
+            ${draft.details ? `<div class="text-[11px] text-lum-700 whitespace-pre-line leading-relaxed p-3 bg-lum-50 rounded-md mb-3 border border-lum-100">${draft.details}</div>` : ''}
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              ${isPending ? `
+                <button onclick="setDraftStatus(${i},'approved')" class="px-2.5 py-1 text-[11px] bg-green-600 text-white rounded hover:bg-green-700 transition">✅ Approve</button>
+                <button onclick="setDraftStatus(${i},'rejected')" class="px-2.5 py-1 text-[11px] bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition">⏸ Hold</button>
+              ` : ''}
+              ${isApproved ? `<span class="text-[10px] text-green-600 italic">✓ Ready to post</span>` : ''}
+              ${draft.status === 'rejected' ? `<span class="text-[10px] text-amber-600 italic">On hold — awaiting revision</span>` : ''}
+            </div>
             ${commentsHtml}
-            <div class="flex gap-2 items-end">
+            <div class="flex gap-2 items-end mt-2">
               <textarea id="cmnt-${currentPlatform}-${i}" placeholder="Leave feedback for Candice..." rows="2"
                 class="flex-1 text-[11px] border border-lum-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-accent placeholder-lum-300 resize-none leading-relaxed bg-white"></textarea>
               <button onclick="submitComment('${currentPlatform}',${i},'cmnt-${currentPlatform}-${i}')"
@@ -1233,9 +1291,22 @@ function renderDrafts(el) {
       </div>
     </div>`;
   });
+
   html += '</div>';
   el.innerHTML = html;
 }
+
+function toggleExpand(expandId, rowId) {
+  const el = document.getElementById(expandId);
+  const row = document.getElementById(rowId);
+  if(!el) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  const chevron = row?.querySelector('.schedule-chevron');
+  if(chevron) chevron.textContent = isOpen ? '▸' : '▾';
+  if(row) row.classList.toggle('schedule-row-open', !isOpen);
+}
+
 
 function setDraftStatus(index, status) {
   if(!DATA.drafts[currentPlatform]) return;
