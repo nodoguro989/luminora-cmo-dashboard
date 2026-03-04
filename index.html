@@ -848,16 +848,24 @@ let currentCategory = 'app';
 let currentPlatform = 'app-ig-frases';
 let currentSegment = 'drafts'; // 'drafts', 'progress', or 'analysis'
 
-// ─── Collapse State (persisted) ───
+// ─── Collapse State — panels (acct + strategy together, collapsed by default) ───
 let COLLAPSED = JSON.parse(localStorage.getItem('luminora-collapsed') || '{}');
-function isCollapsed(key) { return !!COLLAPSED[key]; }
-function toggleCollapse(key, elId, chevronId) {
-  COLLAPSED[key] = !COLLAPSED[key];
+function panelKey(platId) { return 'panels-' + platId; }
+function isPanelsCollapsed(platId) {
+  const k = panelKey(platId);
+  return k in COLLAPSED ? COLLAPSED[k] : true; // collapsed by default
+}
+function togglePanels(platId) {
+  const k = panelKey(platId);
+  COLLAPSED[k] = !isPanelsCollapsed(platId);
   localStorage.setItem('luminora-collapsed', JSON.stringify(COLLAPSED));
-  const body = document.getElementById(elId);
-  const chev = document.getElementById(chevronId);
-  if(body) body.classList.toggle('collapsed', COLLAPSED[key]);
-  if(chev) chev.classList.toggle('collapsed', COLLAPSED[key]);
+  const col = COLLAPSED[k];
+  ['acct-body-','strat-body-'].forEach(prefix => {
+    const el = document.getElementById(prefix + platId);
+    if(el) el.classList.toggle('collapsed', col);
+  });
+  const btn = document.getElementById('panels-toggle-btn');
+  if(btn) btn.textContent = col ? 'Details ▾' : 'Details ▴';
 }
 
 function save() {
@@ -924,11 +932,13 @@ function render() {
 
   // Horizontal platform tabs
   hBar.style.display = 'flex';
+  const panelCol = isPanelsCollapsed(currentPlatform);
   hBar.innerHTML = cat.platforms.map(p =>
     `<button onclick="setPlatform('${p.id}')" id="htab-${p.id}" class="htab px-4 py-2.5 text-sm text-lum-500 whitespace-nowrap flex items-center gap-1.5 ${p.id === currentPlatform ? 'active' : ''}">
       <span>${p.emoji}</span> ${p.name}
     </button>`
-  ).join('');
+  ).join('') + `<div class="flex-1"></div>
+  <button id="panels-toggle-btn" onclick="togglePanels('${currentPlatform}')" class="text-[11px] text-lum-400 hover:text-lum-600 transition px-3 my-1.5 rounded border border-lum-100 hover:border-lum-300 flex-shrink-0">${panelCol ? 'Details ▾' : 'Details ▴'}</button>`;
 
   // Account info bar
   renderAccountBar(document.getElementById('accountBar'));
@@ -974,27 +984,27 @@ function renderAccountBar(el) {
   if(acct.saves !== undefined) stats.push(`<span class="font-semibold text-lum-800">${acct.saves}</span> saves`);
 
   const platIcon = acct.platform === 'Instagram' ? '📸' : acct.platform === 'TikTok' ? '🎵' : acct.platform === '小红书' ? '📕' : '📧';
-  const colKey = 'acct-'+currentPlatform;
-  const isCol = isCollapsed(colKey);
+  const isCol = isPanelsCollapsed(currentPlatform);
 
   el.innerHTML = `
-    <button onclick="toggleCollapse('${colKey}','acct-body-${currentPlatform}','acct-chev-${currentPlatform}')"
-      class="w-full px-4 md:px-6 py-2 flex items-center gap-3 hover:bg-lum-50 transition text-left">
-      <div class="w-7 h-7 rounded-full bg-lum-200 flex items-center justify-center text-lum-500 text-sm overflow-hidden flex-shrink-0">
-        ${acct.profilePic ? `<img src="${acct.profilePic}" class="w-full h-full object-cover" />` : platIcon}
-      </div>
-      <div class="flex items-center gap-2 flex-1 min-w-0">
-        ${acct.url ? `<a href="${acct.url}" target="_blank" onclick="event.stopPropagation()" class="text-sm font-semibold text-lum-900 hover:text-accent transition truncate">${acct.handle}</a>` : `<span class="text-sm font-semibold text-lum-900 truncate">${acct.handle}</span>`}
-        <span class="text-[10px] ${sc} flex-shrink-0">${statusDots[acct.status] || '○'} ${acct.status}</span>
-        ${stats.length ? `<span class="text-[10px] text-lum-400 hidden md:inline flex-shrink-0">${stats.join(' · ')}</span>` : ''}
-      </div>
-      <svg id="acct-chev-${currentPlatform}" class="collapse-chevron ${isCol ? 'collapsed' : ''} w-3.5 h-3.5 text-lum-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-    </button>
-    <div id="acct-body-${currentPlatform}" class="collapsible-body ${isCol ? 'collapsed' : ''}" style="max-height:200px">
-      <div class="px-4 md:px-6 pb-3 pt-0">
-        <div class="text-[10px] text-lum-400 mb-1">${acct.platform}${acct.fbLinked ? ` · FB: ${acct.fbLinked}` : ''}</div>
-        <div class="text-[11px] text-lum-700 whitespace-pre-line leading-relaxed">${acct.bio}</div>
-        ${stats.length ? `<div class="flex gap-3 mt-1 text-[10px] text-lum-500">${stats.join(' · ')}</div>` : ''}
+    <div class="collapsible-body ${isCol ? 'collapsed' : ''}" id="acct-body-${currentPlatform}" style="max-height:200px">
+      <div class="px-4 md:px-6 py-2.5 flex flex-col md:flex-row md:items-center gap-3">
+        <div class="flex items-center gap-3 flex-shrink-0">
+          <div class="w-8 h-8 rounded-full bg-lum-200 flex items-center justify-center text-lum-500 text-base overflow-hidden flex-shrink-0">
+            ${acct.profilePic ? `<img src="${acct.profilePic}" class="w-full h-full object-cover" />` : platIcon}
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              ${acct.url ? `<a href="${acct.url}" target="_blank" class="text-sm font-semibold text-lum-900 hover:text-accent transition">${acct.handle}</a>` : `<span class="text-sm font-semibold text-lum-900">${acct.handle}</span>`}
+              <span class="text-[10px] ${sc}">${statusDots[acct.status] || '○'} ${acct.status}</span>
+            </div>
+            <div class="text-[10px] text-lum-400">${acct.platform}${acct.fbLinked ? ` · FB: ${acct.fbLinked}` : ''}</div>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-[11px] text-lum-700 whitespace-pre-line leading-relaxed">${acct.bio}</div>
+          ${stats.length ? `<div class="flex gap-3 mt-1 text-[10px] text-lum-500">${stats.join(' · ')}</div>` : ''}
+        </div>
       </div>
     </div>`;
 }
@@ -1004,32 +1014,26 @@ function renderStrategyPanel(el) {
   const hasContent = strat.frequency || strat.kpis || strat.pillars || strat.audience;
   el.style.display = 'block';
 
-  const colKey = 'strat-'+currentPlatform;
-  const isCol = isCollapsed(colKey);
+  const isCol = isPanelsCollapsed(currentPlatform);
 
   if(!hasContent) {
-    el.innerHTML = `<div class="px-4 md:px-6 py-2 flex items-center justify-between">
-      <button onclick="toggleCollapse('${colKey}','strat-body-${currentPlatform}','strat-chev-${currentPlatform}')"
-        class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-lum-400 hover:text-lum-600 transition">
-        <svg id="strat-chev-${currentPlatform}" class="collapse-chevron ${isCol ? 'collapsed' : ''} w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-        Strategy
-      </button>
-      <button onclick="openStrategyEdit('${currentPlatform}')" class="text-[11px] text-accent hover:text-accent-dark transition font-medium">+ Set Strategy</button>
-    </div>`;
+    el.innerHTML = `
+      <div class="collapsible-body ${isCol ? 'collapsed' : ''}" id="strat-body-${currentPlatform}" style="max-height:400px">
+        <div class="px-4 md:px-6 py-2 flex items-center justify-between">
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-lum-400">Strategy</span>
+          <button onclick="openStrategyEdit('${currentPlatform}')" class="text-[11px] text-accent hover:text-accent-dark transition font-medium">+ Set Strategy</button>
+        </div>
+      </div>`;
     return;
   }
 
   el.innerHTML = `
-    <div class="px-4 md:px-6 py-2 flex items-center justify-between">
-      <button onclick="toggleCollapse('${colKey}','strat-body-${currentPlatform}','strat-chev-${currentPlatform}')"
-        class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-lum-400 hover:text-lum-600 transition">
-        <svg id="strat-chev-${currentPlatform}" class="collapse-chevron ${isCol ? 'collapsed' : ''} w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-        Strategy
-      </button>
-      <button onclick="openStrategyEdit('${currentPlatform}')" class="text-[11px] text-accent hover:text-accent-dark transition">Edit</button>
-    </div>
     <div id="strat-body-${currentPlatform}" class="collapsible-body ${isCol ? 'collapsed' : ''}" style="max-height:400px">
-      <div class="px-4 md:px-6 pb-3">
+      <div class="px-4 md:px-6 py-2">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-lum-400">Strategy</span>
+          <button onclick="openStrategyEdit('${currentPlatform}')" class="text-[11px] text-accent hover:text-accent-dark transition">Edit</button>
+        </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 text-xs">
           <div>
             <span class="text-[10px] text-lum-400 block">Frequency</span>
