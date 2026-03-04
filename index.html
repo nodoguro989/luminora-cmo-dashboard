@@ -825,7 +825,7 @@ async function saveToGist(data) {
 }
 
 // ─── Data Init ───
-const DATA_VERSION = 7;
+const DATA_VERSION = 8; // bumped 2026-03-04: force re-seed with Mar drafts + app account data
 let DATA = JSON.parse(localStorage.getItem('luminora-cmo') || 'null');
 if(!DATA || DATA._version !== DATA_VERSION) {
   DATA = defaultData();
@@ -1407,9 +1407,9 @@ function exportData() {
     if(remote.lastUpdated) DATA.lastUpdated = remote.lastUpdated;
     localStorage.setItem('luminora-cmo', JSON.stringify(DATA));
   } else {
-    // No remote data yet — seed from SEED and push to Gist
+    // No remote data (API down) — always re-seed all platforms from SEED
     ALL_ENGINES.forEach(e => {
-      if(DATA.drafts[e.id].length === 0 && SEED.drafts[e.id]?.length > 0) DATA.drafts[e.id] = SEED.drafts[e.id];
+      if(SEED.drafts[e.id]?.length > 0) DATA.drafts[e.id] = SEED.drafts[e.id];
       if(DATA.progress[e.id].length === 0 && SEED.progress?.[e.id]?.length > 0) DATA.progress[e.id] = SEED.progress[e.id];
     });
     Object.entries(SEED.strategies).forEach(([eid, strat]) => { if(strat.frequency) DATA.strategies[eid] = strat; });
