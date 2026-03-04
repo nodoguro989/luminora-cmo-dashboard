@@ -38,6 +38,27 @@ tailwind.config = {
   .collapse-chevron.collapsed { transform: rotate(-90deg); }
   .modal-overlay { background: rgba(20,19,16,0.5); backdrop-filter: blur(4px); }
   .screenshot-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; }
+  /* Draft visual preview */
+  .draft-preview-wrap { position: relative; flex-shrink: 0; width: 140px; }
+  .draft-preview-img { width: 140px; height: 140px; object-fit: cover; border-radius: 8px; display: block; cursor: zoom-in; transition: opacity 0.15s; }
+  .draft-preview-img.vetoed { opacity: 0.35; }
+  .draft-preview-veto-line { position: absolute; top: 0; left: 0; width: 140px; height: 140px; pointer-events: none; border-radius: 8px; overflow: hidden; }
+  .draft-preview-veto-line svg { width: 100%; height: 100%; }
+  .draft-preview-actions { position: absolute; bottom: 4px; left: 4px; right: 4px; display: flex; gap: 4px; justify-content: space-between; }
+  .draft-preview-btn { font-size: 10px; padding: 2px 6px; border-radius: 4px; border: none; cursor: pointer; line-height: 1.4; transition: all 0.15s; }
+  .draft-preview-btn.enlarge { background: rgba(0,0,0,0.55); color: #fff; }
+  .draft-preview-btn.enlarge:hover { background: rgba(0,0,0,0.8); }
+  .draft-preview-btn.veto { background: rgba(180,30,30,0.75); color: #fff; }
+  .draft-preview-btn.veto:hover { background: rgba(180,30,30,1); }
+  .draft-preview-btn.unveto { background: rgba(80,140,80,0.75); color: #fff; }
+  .draft-preview-btn.unveto:hover { background: rgba(80,140,80,1); }
+  /* Lightbox */
+  .lightbox-overlay { position: fixed; inset: 0; background: rgba(10,8,6,0.88); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
+  .lightbox-overlay img { max-width: 92vw; max-height: 92vh; border-radius: 10px; object-fit: contain; box-shadow: 0 24px 80px rgba(0,0,0,0.6); cursor: default; }
+  .lightbox-close { position: fixed; top: 18px; right: 22px; font-size: 28px; color: rgba(255,255,255,0.7); cursor: pointer; line-height: 1; z-index: 201; transition: color 0.15s; }
+  .lightbox-close:hover { color: #fff; }
+  /* Comment archive */
+  .comment-archived { display: none; }
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #c4b8b4; border-radius: 3px; }
@@ -1118,7 +1139,6 @@ function renderDrafts(el) {
   const draftStatusColors = { draft:'bg-blue-50 text-blue-700 border-blue-200', approved:'bg-green-50 text-green-700 border-green-200', rejected:'bg-amber-50 text-amber-700 border-amber-200', posted:'bg-lum-100 text-lum-600 border-lum-200' };
   const draftStatusLabels = { draft:'⏳ Pending', approved:'✅ Approved', rejected:'⏸ On Hold', posted:'📤 Posted' };
 
-  // Sort: pending first, then approved, then rest, all by scheduled date
   const order = { draft:0, approved:1, rejected:3, posted:2 };
   const sorted = [...drafts].map((d,i) => ({...d, _i:i})).sort((a,b) => (order[a.status]||9) - (order[b.status]||9) || a.date.localeCompare(b.date));
 
@@ -1129,17 +1149,66 @@ function renderDrafts(el) {
     const sl = draftStatusLabels[draft.status] || draft.status;
     const isPending = draft.status === 'draft';
     const isApproved = draft.status === 'approved';
+    const isVetoed = !!draft.screenshotVetoed;
+
+    // ── Visual preview block ──
+    const previewHtml = draft.screenshot ? `
+      <div class="draft-preview-wrap">
+        <img src="${draft.screenshot}"
+          class="draft-preview-img ${isVetoed ? 'vetoed' : ''}"
+          onclick="openLightbox('${draft.screenshot}')"
+          onerror="this.closest('.draft-preview-wrap').style.display='none'" />
+        ${isVetoed ? `
+          <div class="draft-preview-veto-line">
+            <svg viewBox="0 0 140 140" preserveAspectRatio="none">
+              <line x1="4" y1="4" x2="136" y2="136" stroke="#cc2222" stroke-width="3" stroke-linecap="round"/>
+              <line x1="136" y1="4" x2="4" y2="136" stroke="#cc2222" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>` : ''}
+        <div class="draft-preview-actions">
+          <button class="draft-preview-btn enlarge" onclick="openLightbox('${draft.screenshot}')">⤢ View</button>
+          <button class="draft-preview-btn ${isVetoed ? 'unveto' : 'veto'}"
+            onclick="toggleScreenshotVeto('${currentPlatform}',${i})">
+            ${isVetoed ? '↩ Restore' : '✕ Cross'}
+          </button>
+        </div>
+      </div>` : '';
+
+    // ── Comments: support both old `comment` string and new `comments` array ──
+    const legacyComment = (draft.comment && !(draft.comments && draft.comments.length)) ? [{
+      text: draft.comment, date: null, archived: false, _legacy: true
+    }] : [];
+    const allComments = [...legacyComment, ...(draft.comments || [])];
+    const activeComments = allComments.filter(c => !c.archived);
+
+    const commentsHtml = activeComments.length > 0 ? `
+      <div class="text-[10px] font-semibold text-lum-400 uppercase tracking-wide mb-1.5">Feedback</div>
+      <div class="space-y-1.5 mb-2">
+        ${allComments.map((c, ci) => c.archived ? '' : `
+          <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-2">
+            <div class="flex-1 min-w-0">
+              ${c.date ? `<div class="text-[9px] text-lum-400 mb-0.5">${new Date(c.date).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>` : ''}
+              <div class="text-[11px] text-amber-800 whitespace-pre-line leading-relaxed">${c.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+            </div>
+            <button onclick="${c._legacy ? `archiveLegacyComment('${currentPlatform}',${i})` : `archiveComment('${currentPlatform}',${i},${ci - legacyComment.length})`}"
+              title="Archive — mark as addressed"
+              class="flex-shrink-0 flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-lum-200 bg-white text-lum-400 hover:border-green-400 hover:text-green-600 hover:bg-green-50 transition font-medium whitespace-nowrap">
+              ✓ Archive
+            </button>
+          </div>
+        `).join('')}
+      </div>` : '';
 
     html += `<div class="p-4 rounded-lg bg-white border ${isPending ? 'border-blue-200' : 'border-lum-100'} group hover:shadow-sm transition">
-      <div class="flex items-start gap-3">
-        ${draft.screenshot ? `<img src="${draft.screenshot}" class="screenshot-thumb flex-shrink-0" onerror="this.style.display='none'" />` : ''}
+      <div class="flex items-start gap-4">
+        ${previewHtml}
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 mb-1.5">
             <span class="text-[10px] px-1.5 py-0.5 rounded-full border ${sc}">${sl}</span>
             <span class="text-[10px] text-lum-400">📅 ${draft.date}</span>
             <button onclick="deleteEntry('${currentPlatform}','drafts',${i})" class="text-[10px] text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition ml-auto">✕</button>
           </div>
-          <h4 class="text-sm font-semibold text-lum-900 leading-snug mb-1">${draft.title}</h4>
+          <h4 class="text-sm font-semibold text-lum-900 leading-snug mb-1 ${isVetoed ? 'line-through text-lum-400' : ''}">${draft.title}</h4>
           ${draft.details ? `<div class="text-[11px] text-lum-700 whitespace-pre-line leading-relaxed p-2.5 bg-lum-50 rounded-md mb-2 border border-lum-100">${draft.details}</div>` : ''}
 
           <div class="flex flex-wrap items-center gap-2 mt-2">
@@ -1150,21 +1219,9 @@ function renderDrafts(el) {
             ${isApproved ? `<span class="text-[10px] text-green-600 italic">Ready to post</span>` : ''}
             ${draft.status === 'rejected' ? `<span class="text-[10px] text-amber-600 italic">On hold</span>` : ''}
           </div>
+
           <div class="mt-3 border-t border-lum-100 pt-3">
-            ${(draft.comments||[]).filter(c=>!c.archived).length > 0 ? `
-              <div class="text-[10px] font-semibold text-lum-400 uppercase tracking-wide mb-1.5">Feedback</div>
-              <div class="space-y-1.5 mb-2">
-                ${(draft.comments||[]).map((c,ci) => c.archived ? '' : `
-                  <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-2">
-                    <div class="flex-1 min-w-0">
-                      <div class="text-[9px] text-lum-400 mb-0.5">${new Date(c.date).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
-                      <div class="text-[11px] text-amber-800 whitespace-pre-line leading-relaxed">${c.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-                    </div>
-                    <button onclick="archiveComment('${currentPlatform}',${i},${ci})" title="Mark as addressed" class="text-[10px] text-lum-300 hover:text-green-600 transition flex-shrink-0 font-medium">✓ Done</button>
-                  </div>
-                `).join('')}
-              </div>
-            ` : ''}
+            ${commentsHtml}
             <div class="flex gap-2 items-end">
               <textarea id="cmnt-${currentPlatform}-${i}" placeholder="Leave feedback for Candice..." rows="2"
                 class="flex-1 text-[11px] border border-lum-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-accent placeholder-lum-300 resize-none leading-relaxed bg-white"></textarea>
@@ -1205,6 +1262,45 @@ function archiveComment(platformId, draftIndex, commentIndex) {
   draft.comments[commentIndex].archived = true;
   save(); render();
 }
+
+function archiveLegacyComment(platformId, draftIndex) {
+  const draft = DATA.drafts[platformId]?.[draftIndex];
+  if(!draft) return;
+  // Migrate legacy string comment → archived comments array entry
+  if(!draft.comments) draft.comments = [];
+  draft.comments.push({ text: draft.comment, date: null, archived: true });
+  draft.comment = '';
+  save(); render();
+}
+
+function toggleScreenshotVeto(platformId, draftIndex) {
+  const draft = DATA.drafts[platformId]?.[draftIndex];
+  if(!draft) return;
+  draft.screenshotVetoed = !draft.screenshotVetoed;
+  save(); render();
+}
+
+// ─── Lightbox ───
+function openLightbox(src) {
+  let lb = document.getElementById('lightbox');
+  if(!lb) {
+    lb = document.createElement('div');
+    lb.id = 'lightbox';
+    lb.className = 'lightbox-overlay';
+    lb.innerHTML = `<span class="lightbox-close" onclick="closeLightbox()">×</span><img id="lightbox-img" src="" />`;
+    lb.addEventListener('click', e => { if(e.target === lb) closeLightbox(); });
+    document.body.appendChild(lb);
+  }
+  document.getElementById('lightbox-img').src = src;
+  lb.style.display = 'flex';
+  document.addEventListener('keydown', _lbKey);
+}
+function closeLightbox() {
+  const lb = document.getElementById('lightbox');
+  if(lb) lb.style.display = 'none';
+  document.removeEventListener('keydown', _lbKey);
+}
+function _lbKey(e) { if(e.key === 'Escape') closeLightbox(); }
 
 // ─── Modals ───
 function openAddEntry(engineId, segment) {
