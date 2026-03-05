@@ -1292,13 +1292,28 @@ function renderDrafts(el) {
               <button onclick="submitComment('${currentPlatform}',${i},'cmnt-${currentPlatform}-${i}')"
                 class="px-3 py-2 text-[11px] bg-accent text-white rounded-md hover:bg-accent-dark transition flex-shrink-0 font-medium">Submit</button>
             </div>
-            <div class="mt-2">
+            <div class="mt-2 flex gap-2 flex-wrap items-center">
               <button id="upload-btn-${currentPlatform}-${i}"
                 onclick="uploadVisual('${currentPlatform}',${i})"
                 class="px-3 py-1.5 text-[11px] border border-lum-300 text-lum-600 rounded-md hover:border-accent hover:text-accent transition font-medium">
                 📎 Upload Visual
               </button>
-              <span class="text-[10px] text-lum-300 ml-2">Upload a Canva export or screenshot to attach to this draft</span>
+              ${!isApproved && !isPosted ? `
+              <button onclick="approveDraft('${currentPlatform}',${i})"
+                class="px-3 py-1.5 text-[11px] bg-green-600 text-white rounded-md hover:bg-green-700 transition font-medium">
+                ✅ Approve
+              </button>` : ''}
+              ${isApproved ? `
+              <button onclick="unapproveDraft('${currentPlatform}',${i})"
+                class="px-3 py-1.5 text-[11px] border border-green-300 text-green-700 rounded-md hover:border-red-300 hover:text-red-600 transition font-medium">
+                ↩ Unapprove
+              </button>` : ''}
+              ${isApproved ? `
+              <button onclick="markPosted('${currentPlatform}',${i})"
+                class="px-3 py-1.5 text-[11px] bg-lum-600 text-white rounded-md hover:bg-lum-700 transition font-medium">
+                📤 Mark as Posted
+              </button>` : ''}
+              <span class="text-[10px] text-lum-300">Upload a Canva export or screenshot to attach to this draft</span>
             </div>
           </div>
         </div>
@@ -1401,6 +1416,31 @@ async function _handleUploadChange(e) {
     alert('Upload failed: ' + err.message);
     if (btn) { btn.textContent = '📎 Upload Visual'; btn.disabled = false; }
   }
+}
+
+// ─── Approve / Unapprove / Mark Posted ───
+function approveDraft(platformId, draftIndex) {
+  const draft = DATA.drafts[platformId]?.[draftIndex];
+  if (!draft) return;
+  draft.status = 'approved';
+  draft.approvedAt = new Date().toISOString();
+  save(); render();
+}
+
+function unapproveDraft(platformId, draftIndex) {
+  const draft = DATA.drafts[platformId]?.[draftIndex];
+  if (!draft) return;
+  draft.status = 'draft';
+  delete draft.approvedAt;
+  save(); render();
+}
+
+function markPosted(platformId, draftIndex) {
+  const draft = DATA.drafts[platformId]?.[draftIndex];
+  if (!draft) return;
+  draft.status = 'posted';
+  draft.postedAt = new Date().toISOString();
+  save(); render();
 }
 
 function confirmDeleteScreenshot(platformId, draftIndex, src) {
