@@ -1424,7 +1424,17 @@ function toggleHideScreenshot(platformId, draftIndex, src) {
   const idx = draft.hiddenScreenshots.indexOf(src);
   if(idx === -1) draft.hiddenScreenshots.push(src);
   else draft.hiddenScreenshots.splice(idx, 1);
-  save(); render();
+  const nowHidden = idx === -1;
+  // Update DOM in-place — no re-render, row stays open
+  document.querySelectorAll(`.draft-preview-img[src="${src}"]`).forEach(img => {
+    img.classList.toggle('hidden-visual', nowHidden);
+    const btn = img.closest('.draft-preview-wrap')?.querySelector('.hide-vis, .show-vis');
+    if(btn) {
+      btn.className = `draft-preview-btn ${nowHidden ? 'show-vis' : 'hide-vis'}`;
+      btn.textContent = nowHidden ? '↩ Restore' : '◑ Hide';
+    }
+  });
+  save();
 }
 
 // ─── Lightbox ───
