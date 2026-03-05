@@ -57,18 +57,18 @@ tailwind.config = {
   .schedule-expand { border-top: 1px solid #ede8e2; background: #fdfcfb; }
   /* Draft visual preview */
   .draft-preview-wrap { position: relative; flex-shrink: 0; width: 140px; }
-  .draft-preview-img { width: 140px; height: 140px; object-fit: cover; border-radius: 8px; display: block; cursor: zoom-in; transition: opacity 0.15s; }
-  .draft-preview-img.vetoed { opacity: 0.35; }
-  .draft-preview-veto-line { position: absolute; top: 0; left: 0; width: 140px; height: 140px; pointer-events: none; border-radius: 8px; overflow: hidden; }
-  .draft-preview-veto-line svg { width: 100%; height: 100%; }
+  .draft-preview-img { width: 140px; height: 140px; object-fit: cover; border-radius: 8px; display: block; cursor: zoom-in; transition: opacity 0.15s, filter 0.15s; }
+  .draft-preview-img.hidden-visual { opacity: 0.28; filter: grayscale(60%); }
+  .draft-preview-delete { position: absolute; top: 5px; right: 5px; width: 20px; height: 20px; border-radius: 50%; background: rgba(20,10,5,0.6); color: #fff; border: none; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; z-index: 2; line-height: 1; }
+  .draft-preview-delete:hover { background: rgba(180,30,30,0.92); }
   .draft-preview-actions { position: absolute; bottom: 4px; left: 4px; right: 4px; display: flex; gap: 4px; justify-content: space-between; }
   .draft-preview-btn { font-size: 10px; padding: 2px 6px; border-radius: 4px; border: none; cursor: pointer; line-height: 1.4; transition: all 0.15s; }
   .draft-preview-btn.enlarge { background: rgba(0,0,0,0.55); color: #fff; }
   .draft-preview-btn.enlarge:hover { background: rgba(0,0,0,0.8); }
-  .draft-preview-btn.veto { background: rgba(180,30,30,0.75); color: #fff; }
-  .draft-preview-btn.veto:hover { background: rgba(180,30,30,1); }
-  .draft-preview-btn.unveto { background: rgba(80,140,80,0.75); color: #fff; }
-  .draft-preview-btn.unveto:hover { background: rgba(80,140,80,1); }
+  .draft-preview-btn.hide-vis { background: rgba(40,40,40,0.62); color: #fff; }
+  .draft-preview-btn.hide-vis:hover { background: rgba(40,40,40,0.88); }
+  .draft-preview-btn.show-vis { background: rgba(60,120,70,0.78); color: #fff; }
+  .draft-preview-btn.show-vis:hover { background: rgba(60,120,70,1); }
   /* Lightbox */
   .lightbox-overlay { position: fixed; inset: 0; background: rgba(10,8,6,0.88); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
   .lightbox-overlay img { max-width: 92vw; max-height: 92vh; border-radius: 10px; object-fit: contain; box-shadow: 0 24px 80px rgba(0,0,0,0.6); cursor: default; }
@@ -1229,17 +1229,31 @@ function renderDrafts(el) {
       </div>` : '';
 
     // Full preview for expanded view
-    const fullPreviewHtml = draft.screenshot ? `
-      <div class="draft-preview-wrap">
-        <img src="${draft.screenshot}"
-          class="draft-preview-img ${isVetoed ? 'vetoed' : ''}"
-          onclick="openLightbox('${draft.screenshot}')"
-          onerror="this.closest('.draft-preview-wrap').style.display='none'" />
-        ${isVetoed ? `<div class="draft-preview-veto-line"><svg viewBox="0 0 140 140" preserveAspectRatio="none"><line x1="4" y1="4" x2="136" y2="136" stroke="#cc2222" stroke-width="3" stroke-linecap="round"/><line x1="136" y1="4" x2="4" y2="136" stroke="#cc2222" stroke-width="3" stroke-linecap="round"/></svg></div>` : ''}
-        <div class="draft-preview-actions">
-          <button class="draft-preview-btn enlarge" onclick="openLightbox('${draft.screenshot}')">⤢ View</button>
-          <button class="draft-preview-btn ${isVetoed ? 'unveto' : 'veto'}" onclick="toggleScreenshotVeto('${currentPlatform}',${i})">${isVetoed ? '↩ Restore' : '✕ Cross'}</button>
-        </div>
+    const allScreenshots = (draft.screenshots && draft.screenshots.length)
+      ? draft.screenshots
+      : (draft.screenshot ? [draft.screenshot] : []);
+    const hiddenSet = new Set(draft.hiddenScreenshots || []);
+
+    const fullPreviewHtml = allScreenshots.length ? `
+      <div style="display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0;">
+        ${allScreenshots.map(src => {
+          const isHidden = hiddenSet.has(src);
+          return `<div class="draft-preview-wrap">
+            <img src="${src}"
+              class="draft-preview-img${isHidden ? ' hidden-visual' : ''}"
+              onclick="openLightbox('${src}')"
+              onerror="this.closest('.draft-preview-wrap').style.display='none'" />
+            <button class="draft-preview-delete" title="Delete this visual"
+              onclick="event.stopPropagation();confirmDeleteScreenshot('${currentPlatform}',${i},'${src}')">✕</button>
+            <div class="draft-preview-actions">
+              <button class="draft-preview-btn enlarge" onclick="openLightbox('${src}')">⤢ View</button>
+              <button class="draft-preview-btn ${isHidden ? 'show-vis' : 'hide-vis'}"
+                onclick="event.stopPropagation();toggleHideScreenshot('${currentPlatform}',${i},'${src}')">
+                ${isHidden ? '↩ Restore' : '◑ Hide'}
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
       </div>` : '';
 
     const createdLabel = draft.createdAt ? `<span class="text-[9px] text-lum-300 ml-auto">Drafted ${fmtCreatedAt(draft.createdAt)}</span>` : '';
@@ -1336,10 +1350,27 @@ function archiveLegacyComment(platformId, draftIndex) {
   save(); render();
 }
 
-function toggleScreenshotVeto(platformId, draftIndex) {
+function confirmDeleteScreenshot(platformId, draftIndex, src) {
+  if(!confirm('Are you sure you want to delete this visual? This can\'t be undone.')) return;
   const draft = DATA.drafts[platformId]?.[draftIndex];
   if(!draft) return;
-  draft.screenshotVetoed = !draft.screenshotVetoed;
+  // Normalise to array
+  if(!draft.screenshots) draft.screenshots = draft.screenshot ? [draft.screenshot] : [];
+  draft.screenshots = draft.screenshots.filter(s => s !== src);
+  // Also remove from hidden list if present
+  if(draft.hiddenScreenshots) draft.hiddenScreenshots = draft.hiddenScreenshots.filter(s => s !== src);
+  // Clear legacy single field if it was the one deleted
+  if(draft.screenshot === src) draft.screenshot = draft.screenshots[0] || '';
+  save(); render();
+}
+
+function toggleHideScreenshot(platformId, draftIndex, src) {
+  const draft = DATA.drafts[platformId]?.[draftIndex];
+  if(!draft) return;
+  if(!draft.hiddenScreenshots) draft.hiddenScreenshots = [];
+  const idx = draft.hiddenScreenshots.indexOf(src);
+  if(idx === -1) draft.hiddenScreenshots.push(src);
+  else draft.hiddenScreenshots.splice(idx, 1);
   save(); render();
 }
 
