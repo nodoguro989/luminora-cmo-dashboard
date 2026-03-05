@@ -1292,6 +1292,14 @@ function renderDrafts(el) {
               <button onclick="submitComment('${currentPlatform}',${i},'cmnt-${currentPlatform}-${i}')"
                 class="px-3 py-2 text-[11px] bg-accent text-white rounded-md hover:bg-accent-dark transition flex-shrink-0 font-medium">Submit</button>
             </div>
+            <div class="mt-2">
+              <button id="upload-btn-${currentPlatform}-${i}"
+                onclick="uploadVisual('${currentPlatform}',${i})"
+                class="px-3 py-1.5 text-[11px] border border-lum-300 text-lum-600 rounded-md hover:border-accent hover:text-accent transition font-medium">
+                📎 Upload Visual
+              </button>
+              <span class="text-[10px] text-lum-300 ml-2">Upload a Canva export or screenshot to attach to this draft</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1348,6 +1356,51 @@ function archiveLegacyComment(platformId, draftIndex) {
   draft.comments.push({ text: draft.comment, date: null, archived: true });
   draft.comment = '';
   save(); render();
+}
+
+// ─── Upload Visual ───
+let _uploadTarget = null; // { platformId, draftIndex }
+
+function uploadVisual(platformId, draftIndex) {
+  _uploadTarget = { platformId, draftIndex };
+  const inp = document.getElementById('global-upload-input');
+  inp.value = '';
+  inp.click();
+}
+
+async function _handleUploadChange(e) {
+  const file = e.target.files[0];
+  if (!file || !_uploadTarget) return;
+  const { platformId, draftIndex } = _uploadTarget;
+
+  // Show progress
+  const btnId = `upload-btn-${platformId}-${draftIndex}`;
+  const btn = document.getElementById(btnId);
+  if (btn) { btn.textContent = '⏳ Uploading…'; btn.disabled = true; }
+
+  try {
+    const fd = new FormData();
+    // Sanitise filename: prefix with date slug
+    const slug = `${platformId}-${draftIndex}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._\-]/g,'-')}`;
+    fd.append('file', file, slug);
+
+    const resp = await fetch('/api/upload', { method: 'POST', body: fd });
+    const json = await resp.json();
+
+    if (!resp.ok || json.error) throw new Error(json.error || 'Upload failed');
+
+    // Attach URL to draft
+    const draft = DATA.drafts[platformId]?.[draftIndex];
+    if (!draft) throw new Error('Draft not found');
+    if (!draft.screenshots) draft.screenshots = draft.screenshot ? [draft.screenshot] : [];
+    draft.screenshots.push(json.url);
+    if (!draft.screenshot) draft.screenshot = json.url;
+
+    save(); render();
+  } catch (err) {
+    alert('Upload failed: ' + err.message);
+    if (btn) { btn.textContent = '📎 Upload Visual'; btn.disabled = false; }
+  }
 }
 
 function confirmDeleteScreenshot(platformId, draftIndex, src) {
@@ -1515,5 +1568,7 @@ function exportData() {
   if(DATA.lastUpdated && el) el.textContent = 'Last saved ' + new Date(DATA.lastUpdated).toLocaleString();
 })();
 </script>
+<input type="file" id="global-upload-input" accept="image/*,video/mp4" style="display:none"
+  onchange="_handleUploadChange(event)" />
 </body>
 </html>
