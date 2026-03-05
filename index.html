@@ -922,14 +922,14 @@ function setCategory(catId) {
   // Reset platform to first in category
   const cat = CATEGORIES.find(c => c.id === catId);
   currentPlatform = cat ? cat.platforms[0].id : null;
-  currentSegment = 'progress';
+  currentSegment = 'drafts';
   updateVTabs();
   render();
 }
 
 function setPlatform(platId) {
   currentPlatform = platId;
-  currentSegment = 'progress';
+  currentSegment = 'drafts';
   updateHTabs();
   render();
 }
