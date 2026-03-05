@@ -986,11 +986,9 @@ function render() {
 
   // Segment tabs
   segBar.style.display = 'flex';
-  const draftCount = (DATA.drafts[currentPlatform] || []).filter(d => d.status === 'draft').length;
-  const pendingBadge = draftCount > 0 ? `<span class="ml-1 px-1.5 py-0.5 text-[9px] bg-accent text-white rounded-full">${draftCount}</span>` : '';
   segBar.innerHTML = `
     <button onclick="setSegment('drafts')" id="segtab-drafts" class="segtab seg-drafts px-4 py-2 text-sm text-lum-500 flex items-center gap-1.5 ${currentSegment==='drafts' ? 'active' : ''}">
-      ✏️ Content Drafts ${pendingBadge}
+      ✏️ Content Drafts
     </button>
     <button onclick="setSegment('progress')" id="segtab-progress" class="segtab seg-progress px-4 py-2 text-sm text-lum-500 flex items-center gap-1.5 ${currentSegment==='progress' ? 'active' : ''}">
       📋 Progress Log
@@ -1173,8 +1171,8 @@ function renderDrafts(el) {
     .map((d,i) => ({...d, _i:i}))
     .sort((a,b) => (a.date||'').localeCompare(b.date||'') || (a.title||'').localeCompare(b.title||''));
 
-  const draftStatusColors = { draft:'bg-blue-50 text-blue-700 border-blue-200', approved:'bg-green-50 text-green-700 border-green-200', rejected:'bg-amber-50 text-amber-700 border-amber-200', posted:'bg-lum-100 text-lum-600 border-lum-200' };
-  const draftStatusLabels = { draft:'⏳ Pending', approved:'✅ Approved', rejected:'⏸ Hold', posted:'📤 Posted' };
+  const draftStatusColors = { approved:'bg-green-50 text-green-700 border-green-200', posted:'bg-lum-100 text-lum-600 border-lum-200' };
+  const draftStatusLabels = { approved:'✅ Approved', posted:'📤 Posted' };
 
   // Group by date for display
   let lastDate = null;
@@ -1185,8 +1183,8 @@ function renderDrafts(el) {
     const i = draft._i;
     const sc = draftStatusColors[draft.status] || draftStatusColors.draft;
     const sl = draftStatusLabels[draft.status] || draft.status;
-    const isPending = draft.status === 'draft';
     const isApproved = draft.status === 'approved';
+    const isPosted = draft.status === 'posted';
     const isVetoed = !!draft.screenshotVetoed;
     const formattedDate = fmtScheduleDate(draft.date);
     const expandId = `expand-${currentPlatform}-${i}`;
@@ -1252,8 +1250,8 @@ function renderDrafts(el) {
           <span class="schedule-date-text">${formattedDate}</span>
         </div>
         <div class="schedule-title-col">
-          <span class="schedule-title-text ${isVetoed ? 'line-through text-lum-400' : ''}">${draft.title}</span>
-          <span class="text-[10px] px-1.5 py-0.5 rounded-full border ${sc} ml-2 whitespace-nowrap">${sl}</span>
+          <span class="schedule-title-text">${draft.title}</span>
+          ${(isApproved || isPosted) ? `<span class="text-[10px] px-1.5 py-0.5 rounded-full border ${sc} ml-2 whitespace-nowrap">${sl}</span>` : ''}
           ${activeComments.length > 0 ? `<span class="schedule-comment-badge">${activeComments.length} 💬</span>` : ''}
         </div>
         <div class="schedule-thumb-col">${thumbHtml}</div>
@@ -1266,19 +1264,11 @@ function renderDrafts(el) {
           ${fullPreviewHtml}
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-2 flex-wrap">
-              <span class="text-[10px] px-1.5 py-0.5 rounded-full border ${sc}">${sl}</span>
+              ${(isApproved || isPosted) ? `<span class="text-[10px] px-1.5 py-0.5 rounded-full border ${sc}">${sl}</span>` : ''}
               ${createdLabel}
               <button onclick="deleteEntry('${currentPlatform}','drafts',${i})" class="text-[10px] text-red-400 hover:text-red-600 transition ml-1">✕ Delete</button>
             </div>
             ${draft.details ? `<div class="text-[11px] text-lum-700 whitespace-pre-line leading-relaxed p-3 bg-lum-50 rounded-md mb-3 border border-lum-100">${draft.details}</div>` : ''}
-            <div class="flex flex-wrap items-center gap-2 mb-3">
-              ${isPending ? `
-                <button onclick="setDraftStatus(${i},'approved')" class="px-2.5 py-1 text-[11px] bg-green-600 text-white rounded hover:bg-green-700 transition">✅ Approve</button>
-                <button onclick="setDraftStatus(${i},'rejected')" class="px-2.5 py-1 text-[11px] bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition">⏸ Hold</button>
-              ` : ''}
-              ${isApproved ? `<span class="text-[10px] text-green-600 italic">✓ Ready to post</span>` : ''}
-              ${draft.status === 'rejected' ? `<span class="text-[10px] text-amber-600 italic">On hold — awaiting revision</span>` : ''}
-            </div>
             ${commentsHtml}
             <div class="flex gap-2 items-end mt-2">
               <textarea id="cmnt-${currentPlatform}-${i}" placeholder="Leave feedback for Candice..." rows="2"
