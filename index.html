@@ -1284,7 +1284,32 @@ function renderDrafts(el) {
               ${createdLabel}
               <button onclick="deleteEntry('${currentPlatform}','drafts',${i})" class="text-[10px] text-red-400 hover:text-red-600 transition ml-1">✕ Delete</button>
             </div>
-            ${draft.details ? `<div class="text-[11px] text-lum-700 whitespace-pre-line leading-relaxed p-3 bg-lum-50 rounded-md mb-3 border border-lum-100">${draft.details}</div>` : ''}
+            <div id="draft-view-${currentPlatform}-${i}">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[10px] text-lum-400 font-medium uppercase tracking-wide">Draft</span>
+                <button onclick="startEditDraft('${currentPlatform}',${i})"
+                  class="text-[10px] text-accent hover:text-accent-dark transition font-medium">✏️ Edit</button>
+              </div>
+              ${draft.details ? `<div class="text-[11px] text-lum-700 whitespace-pre-line leading-relaxed p-3 bg-lum-50 rounded-md mb-3 border border-lum-100">${draft.details}</div>` : '<div class="text-[11px] text-lum-300 italic p-3 mb-3">No details yet.</div>'}
+            </div>
+            <div id="draft-edit-${currentPlatform}-${i}" style="display:none" class="mb-3">
+              <div class="mb-2">
+                <label class="text-[10px] text-lum-400 font-medium uppercase tracking-wide block mb-1">Title</label>
+                <input id="edit-title-${currentPlatform}-${i}" type="text" value="${(draft.title||'').replace(/"/g,'&quot;')}"
+                  class="w-full text-[11px] border border-lum-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-accent bg-white" />
+              </div>
+              <div class="mb-2">
+                <label class="text-[10px] text-lum-400 font-medium uppercase tracking-wide block mb-1">Caption / Details</label>
+                <textarea id="edit-details-${currentPlatform}-${i}" rows="10"
+                  class="w-full text-[11px] border border-lum-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-accent bg-white resize-y leading-relaxed font-mono">${(draft.details||'').replace(/</g,'&lt;')}</textarea>
+              </div>
+              <div class="flex gap-2">
+                <button onclick="saveEditDraft('${currentPlatform}',${i})"
+                  class="px-3 py-1.5 text-[11px] bg-accent text-white rounded-md hover:bg-accent-dark transition font-medium">💾 Save</button>
+                <button onclick="cancelEditDraft('${currentPlatform}',${i})"
+                  class="px-3 py-1.5 text-[11px] border border-lum-200 text-lum-500 rounded-md hover:border-lum-400 transition">Cancel</button>
+              </div>
+            </div>
             ${commentsHtml}
             <div class="flex gap-2 items-end mt-2">
               <textarea id="cmnt-${currentPlatform}-${i}" placeholder="Leave feedback for Candice..." rows="2"
@@ -1323,6 +1348,31 @@ function renderDrafts(el) {
 
   html += '</div>';
   el.innerHTML = html;
+}
+
+function startEditDraft(platform, index) {
+  document.getElementById(`draft-view-${platform}-${index}`).style.display = 'none';
+  document.getElementById(`draft-edit-${platform}-${index}`).style.display = 'block';
+}
+
+function cancelEditDraft(platform, index) {
+  document.getElementById(`draft-edit-${platform}-${index}`).style.display = 'none';
+  document.getElementById(`draft-view-${platform}-${index}`).style.display = 'block';
+}
+
+async function saveEditDraft(platform, index) {
+  const titleEl   = document.getElementById(`edit-title-${platform}-${index}`);
+  const detailsEl = document.getElementById(`edit-details-${platform}-${index}`);
+  const newTitle   = titleEl.value.trim();
+  const newDetails = detailsEl.value;
+
+  DATA.drafts[platform][index].title   = newTitle;
+  DATA.drafts[platform][index].details = newDetails;
+  DATA._version = (DATA._version || 0) + 1;
+
+  localStorage.setItem('luminora-cmo', JSON.stringify(DATA));
+  await saveToGist(DATA);
+  renderCurrentView();
 }
 
 function toggleExpand(expandId, rowId) {
