@@ -1236,15 +1236,15 @@ function renderDrafts(el) {
       <div class="space-y-1.5 mb-2" id="comments-${currentPlatform}-${i}">
         ${allComments.map((c, ci) => {
           if(c.archived) return '';
-          const realIdx = ci - legacyComment.length;
+          const cid = c.id || `legacy-${ci}`;
           const archiveFn = c._legacy
             ? `archiveLegacyComment('${currentPlatform}',${i})`
-            : `archiveCommentDOM('${currentPlatform}',${i},${realIdx},'comments-${currentPlatform}-${i}','cbadge-${currentPlatform}-${i}')`;
+            : `archiveCommentDOM('${currentPlatform}',${i},'${cid}','comments-${currentPlatform}-${i}','cbadge-${currentPlatform}-${i}')`;
           const deleteFn = c._legacy
             ? `archiveLegacyComment('${currentPlatform}',${i})`
-            : `deleteCommentDOM('${currentPlatform}',${i},${realIdx},'comments-${currentPlatform}-${i}','cbadge-${currentPlatform}-${i}')`;
+            : `deleteCommentDOM('${currentPlatform}',${i},'${cid}','comments-${currentPlatform}-${i}','cbadge-${currentPlatform}-${i}')`;
           return `
-          <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-2" id="comment-${currentPlatform}-${i}-${ci}">
+          <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-2" data-comment-id="${cid}">
             <div class="flex-1 min-w-0">
               ${c.date ? `<div class="text-[9px] text-lum-400 mb-0.5">${new Date(c.date).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>` : ''}
               <div class="text-[11px] text-amber-800 whitespace-pre-line leading-relaxed">${c.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
@@ -1409,7 +1409,25 @@ async function saveEditDraft(platform, index) {
 
   localStorage.setItem('luminora-cmo', JSON.stringify(DATA));
   await saveToGist(DATA);
-  renderCurrentView();
+
+  // Update in-place — no full re-render, row stays open
+  const viewDiv = document.getElementById(`draft-view-${platform}-${index}`);
+  if(viewDiv) {
+    const detailsHtml = newDetails
+      ? `<div class="text-[11px] text-lum-700 whitespace-pre-line leading-relaxed p-3 bg-lum-50 rounded-md mb-3 border border-lum-100">${newDetails.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`
+      : '<div class="text-[11px] text-lum-300 italic p-3 mb-3">No details yet.</div>';
+    viewDiv.innerHTML = `
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[10px] text-lum-400 font-medium uppercase tracking-wide">Draft</span>
+        <button onclick="startEditDraft('${platform}',${index})" class="text-[10px] text-accent hover:text-accent-dark transition font-medium">✏️ Edit</button>
+      </div>
+      ${detailsHtml}`;
+  }
+  // Also update the title in the collapsed row header
+  const rowTitleEl = document.querySelector(`#row-${platform}-drafts-${index} .schedule-title-text`);
+  if(rowTitleEl) rowTitleEl.textContent = newTitle;
+
+  cancelEditDraft(platform, index);
 }
 
 function toggleExpand(expandId, rowId) {
@@ -1438,7 +1456,8 @@ function submitComment(platformId, draftIndex, textareaId) {
   const draft = DATA.drafts[platformId]?.[draftIndex];
   if(!draft) return;
   if(!draft.comments) draft.comments = [];
-  draft.comments.push({ text, date: new Date().toISOString(), archived: false });
+  const cid = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  draft.comments.push({ id: cid, text, date: new Date().toISOString(), archived: false });
   textarea.value = '';
   save(); render();
 }
@@ -1469,30 +1488,25 @@ function _updateCommentBadge(badgeId, containerId) {
   else { badge.textContent = remaining + ' 💬'; badge.style.display = ''; }
 }
 
-function archiveCommentDOM(platformId, draftIndex, commentIndex, containerId, badgeId) {
+function archiveCommentDOM(platformId, draftIndex, commentId, containerId, badgeId) {
   const draft = DATA.drafts[platformId]?.[draftIndex];
-  if(!draft?.comments?.[commentIndex]) return;
-  draft.comments[commentIndex].archived = true;
+  if(!draft?.comments) return;
+  const c = draft.comments.find(x => x.id === commentId);
+  if(!c) return;
+  c.archived = true;
   save();
-  // Find and remove the comment element by scanning for its position
-  const container = document.getElementById(containerId);
-  if(container) {
-    const cards = container.querySelectorAll('[id^="comment-"]');
-    if(cards[commentIndex]) cards[commentIndex].remove();
-  }
+  document.querySelector(`#${containerId} [data-comment-id="${commentId}"]`)?.remove();
   _updateCommentBadge(badgeId, containerId);
 }
 
-function deleteCommentDOM(platformId, draftIndex, commentIndex, containerId, badgeId) {
+function deleteCommentDOM(platformId, draftIndex, commentId, containerId, badgeId) {
   const draft = DATA.drafts[platformId]?.[draftIndex];
-  if(!draft?.comments?.[commentIndex]) return;
-  draft.comments.splice(commentIndex, 1);
+  if(!draft?.comments) return;
+  const idx = draft.comments.findIndex(x => x.id === commentId);
+  if(idx === -1) return;
+  draft.comments.splice(idx, 1);
   save();
-  const container = document.getElementById(containerId);
-  if(container) {
-    const cards = container.querySelectorAll('[id^="comment-"]');
-    if(cards[commentIndex]) cards[commentIndex].remove();
-  }
+  document.querySelector(`#${containerId} [data-comment-id="${commentId}"]`)?.remove();
   _updateCommentBadge(badgeId, containerId);
 }
 
