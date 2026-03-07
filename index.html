@@ -829,22 +829,43 @@ async function loadFromGist() {
 }
 
 async function saveToGist(data) {
+  const el = document.getElementById('lastUpdated');
   try {
     const res = await fetch('/api/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    if(!res.ok) throw new Error('Save failed: ' + res.status);
+    if(!res.ok) {
+      const errText = await res.text().catch(() => res.status);
+      throw new Error(`${res.status}: ${errText}`);
+    }
+    const result = await res.json().catch(() => ({}));
+    if(el) el.textContent = 'Saved ' + new Date().toLocaleTimeString();
+    return result;
   } catch(e) {
-    console.warn('Could not save remote data:', e.message);
+    console.error('saveToGist failed:', e.message);
+    if(el) el.textContent = '⚠️ Save failed — ' + e.message;
+    // Surface a visible banner so failures are never silent
+    let banner = document.getElementById('save-error-banner');
+    if(!banner) {
+      banner = document.createElement('div');
+      banner.id = 'save-error-banner';
+      banner.style.cssText = 'position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:#7a2e2e;color:#fff;padding:0.6rem 1.2rem;border-radius:8px;font-size:0.85rem;z-index:9999;cursor:pointer';
+      banner.onclick = () => banner.remove();
+      document.body.appendChild(banner);
+    }
+    banner.textContent = '⚠️ Gist save failed: ' + e.message + ' — click to dismiss';
+    setTimeout(() => banner?.remove(), 8000);
+    throw e; // re-throw so callers can handle
   }
 }
 
 // ─── Data Init ───
-const DATA_VERSION = 8; // bumped 2026-03-04: force re-seed with Mar drafts + app account data
+const DATA_VERSION = 9; // bumped 2026-03-07: multi-theme visual rebuild; fix: only reset on older versions
 let DATA = JSON.parse(localStorage.getItem('luminora-cmo') || 'null');
-if(!DATA || DATA._version !== DATA_VERSION) {
+// Only force-reseed if no data or data is from a OLDER version — never reset newer data
+if(!DATA || (DATA._version !== undefined && DATA._version < DATA_VERSION && DATA._version < 8)) {
   DATA = defaultData();
   DATA._version = DATA_VERSION;
 }

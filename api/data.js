@@ -24,6 +24,20 @@ async function gistFetch(method, body) {
   return res.json();
 }
 
+// Explicitly read + parse raw body — req.body is undefined in Vercel ESM runtime
+async function readJsonBody(req) {
+  if (req.body !== undefined && req.body !== null) {
+    // Already parsed by Vercel's body-parser (non-ESM path)
+    return typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  }
+  // ESM path: body is a readable stream, consume it manually
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const text = Buffer.concat(chunks).toString('utf8');
+  if (!text) throw new Error('Empty request body');
+  return JSON.parse(text);
+}
+
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -45,7 +59,10 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const data = req.body;
+      const data = await readJsonBody(req);
+      if (!data || typeof data !== 'object') {
+        return res.status(400).json({ error: 'Invalid or empty JSON body' });
+      }
       await gistFetch('PATCH', {
         files: { [GIST_FILE]: { content: JSON.stringify(data, null, 2) } }
       });
