@@ -1212,20 +1212,36 @@ function renderDrafts(el) {
 
     const commentsHtml = activeComments.length > 0 ? `
       <div class="text-[10px] font-semibold text-lum-400 uppercase tracking-wide mb-1.5 mt-3">Feedback</div>
-      <div class="space-y-1.5 mb-2">
-        ${allComments.map((c, ci) => c.archived ? '' : `
-          <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-2">
+      <div class="space-y-1.5 mb-2" id="comments-${currentPlatform}-${i}">
+        ${allComments.map((c, ci) => {
+          if(c.archived) return '';
+          const realIdx = ci - legacyComment.length;
+          const archiveFn = c._legacy
+            ? `archiveLegacyComment('${currentPlatform}',${i})`
+            : `archiveCommentDOM('${currentPlatform}',${i},${realIdx},'comments-${currentPlatform}-${i}','cbadge-${currentPlatform}-${i}')`;
+          const deleteFn = c._legacy
+            ? `archiveLegacyComment('${currentPlatform}',${i})`
+            : `deleteCommentDOM('${currentPlatform}',${i},${realIdx},'comments-${currentPlatform}-${i}','cbadge-${currentPlatform}-${i}')`;
+          return `
+          <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-2" id="comment-${currentPlatform}-${i}-${ci}">
             <div class="flex-1 min-w-0">
               ${c.date ? `<div class="text-[9px] text-lum-400 mb-0.5">${new Date(c.date).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>` : ''}
               <div class="text-[11px] text-amber-800 whitespace-pre-line leading-relaxed">${c.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
             </div>
-            <button onclick="${c._legacy ? `archiveLegacyComment('${currentPlatform}',${i})` : `archiveComment('${currentPlatform}',${i},${ci - legacyComment.length})`}"
-              title="Archive — mark as addressed"
-              class="flex-shrink-0 flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-lum-200 bg-white text-lum-400 hover:border-green-400 hover:text-green-600 hover:bg-green-50 transition font-medium whitespace-nowrap">
-              ✓ Done
-            </button>
-          </div>
-        `).join('')}
+            <div class="flex flex-col gap-1 flex-shrink-0">
+              <button onclick="${archiveFn}"
+                title="Archive — mark as addressed"
+                class="flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-lum-200 bg-white text-lum-400 hover:border-green-400 hover:text-green-600 hover:bg-green-50 transition font-medium whitespace-nowrap">
+                ✓ Archive
+              </button>
+              <button onclick="${deleteFn}"
+                title="Delete this comment permanently"
+                class="flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-red-100 bg-white text-red-300 hover:border-red-400 hover:text-red-600 hover:bg-red-50 transition font-medium whitespace-nowrap">
+                🗑 Delete
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
       </div>` : '';
 
     // Full preview for expanded view
@@ -1268,7 +1284,7 @@ function renderDrafts(el) {
         <div class="schedule-title-col">
           <span class="schedule-title-text">${draft.title}</span>
           ${(isApproved || isPosted) ? `<span class="text-[10px] px-1.5 py-0.5 rounded-full border ${sc} ml-2 whitespace-nowrap">${sl}</span>` : ''}
-          ${activeComments.length > 0 ? `<span class="schedule-comment-badge">${activeComments.length} 💬</span>` : ''}
+          ${activeComments.length > 0 ? `<span class="schedule-comment-badge" id="cbadge-${currentPlatform}-${i}">${activeComments.length} 💬</span>` : `<span class="schedule-comment-badge" id="cbadge-${currentPlatform}-${i}" style="display:none">0 💬</span>`}
         </div>
         <div class="schedule-thumb-col">${thumbHtml}</div>
         <div class="schedule-chevron">▸</div>
@@ -1416,11 +1432,47 @@ function archiveComment(platformId, draftIndex, commentIndex) {
 function archiveLegacyComment(platformId, draftIndex) {
   const draft = DATA.drafts[platformId]?.[draftIndex];
   if(!draft) return;
-  // Migrate legacy string comment → archived comments array entry
   if(!draft.comments) draft.comments = [];
   draft.comments.push({ text: draft.comment, date: null, archived: true });
   draft.comment = '';
   save(); render();
+}
+
+// ── DOM-in-place comment actions (row stays open) ──
+function _updateCommentBadge(badgeId, containerId) {
+  const container = document.getElementById(containerId);
+  const badge = document.getElementById(badgeId);
+  if(!container || !badge) return;
+  const remaining = container.querySelectorAll('[id^="comment-"]').length;
+  if(remaining === 0) { badge.style.display = 'none'; }
+  else { badge.textContent = remaining + ' 💬'; badge.style.display = ''; }
+}
+
+function archiveCommentDOM(platformId, draftIndex, commentIndex, containerId, badgeId) {
+  const draft = DATA.drafts[platformId]?.[draftIndex];
+  if(!draft?.comments?.[commentIndex]) return;
+  draft.comments[commentIndex].archived = true;
+  save();
+  // Find and remove the comment element by scanning for its position
+  const container = document.getElementById(containerId);
+  if(container) {
+    const cards = container.querySelectorAll('[id^="comment-"]');
+    if(cards[commentIndex]) cards[commentIndex].remove();
+  }
+  _updateCommentBadge(badgeId, containerId);
+}
+
+function deleteCommentDOM(platformId, draftIndex, commentIndex, containerId, badgeId) {
+  const draft = DATA.drafts[platformId]?.[draftIndex];
+  if(!draft?.comments?.[commentIndex]) return;
+  draft.comments.splice(commentIndex, 1);
+  save();
+  const container = document.getElementById(containerId);
+  if(container) {
+    const cards = container.querySelectorAll('[id^="comment-"]');
+    if(cards[commentIndex]) cards[commentIndex].remove();
+  }
+  _updateCommentBadge(badgeId, containerId);
 }
 
 // ─── Upload Visual ───
